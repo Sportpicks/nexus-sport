@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getReport, type PredictionReport } from "@/lib/api";
 import { getToken } from "@/lib/tokens";
-import { getFlag } from "@/lib/flags";
+import { getFlagUrl } from "@/lib/flags";
 
 function Stat({
   label,
@@ -146,11 +146,19 @@ export default function ReportPage() {
             ← Volver
           </button>
           <div className="flex flex-1 items-center justify-center gap-2">
-            <span style={{ fontSize: "24px", lineHeight: "1" }}>{getFlag(home_team)}</span>
+            <img
+              src={getFlagUrl(home_team)}
+              alt={home_team}
+              style={{ width: 32, height: 21, objectFit: "cover", borderRadius: 3 }}
+            />
             <p className="text-sm font-semibold">
               {home_team} vs {away_team}
             </p>
-            <span style={{ fontSize: "24px", lineHeight: "1" }}>{getFlag(away_team)}</span>
+            <img
+              src={getFlagUrl(away_team)}
+              alt={away_team}
+              style={{ width: 32, height: 21, objectFit: "cover", borderRadius: 3 }}
+            />
           </div>
         </div>
       </header>

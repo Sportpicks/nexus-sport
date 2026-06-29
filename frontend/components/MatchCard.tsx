@@ -6,6 +6,26 @@ import type { Match } from "@/lib/api";
 import { getToken } from "@/lib/tokens";
 import PaywallModal from "./PaywallModal";
 
+const FLAG_CODES: Record<string, string> = {
+  "brasil": "br", "argentina": "ar", "francia": "fr", "alemania": "de",
+  "españa": "es", "portugal": "pt", "inglaterra": "gb-eng", "uruguay": "uy",
+  "colombia": "co", "méxico": "mx", "mexico": "mx", "estados unidos": "us",
+  "usa": "us", "canadá": "ca", "canada": "ca", "marruecos": "ma",
+  "japón": "jp", "japon": "jp", "croacia": "hr", "países bajos": "nl",
+  "holanda": "nl", "suiza": "ch", "senegal": "sn", "australia": "au",
+  "corea del sur": "kr", "italia": "it", "bélgica": "be", "belgica": "be",
+  "polonia": "pl", "serbia": "rs", "dinamarca": "dk", "ecuador": "ec",
+  "perú": "pe", "peru": "pe", "chile": "cl", "venezuela": "ve",
+  "ghana": "gh", "nigeria": "ng", "turquía": "tr", "turquia": "tr",
+  "ucrania": "ua", "austria": "at", "escocia": "gb-sct", "gales": "gb-wls",
+  "grecia": "gr",
+};
+
+function getFlagUrl(name: string): string {
+  const code = FLAG_CODES[name.toLowerCase().trim()] ?? "un";
+  return `https://flagcdn.com/w80/${code}.png`;
+}
+
 const STAGE_LABELS: Record<string, string> = {
   LAST_16: "Octavos de Final",
   ROUND_OF_16: "Octavos de Final",
@@ -15,56 +35,6 @@ const STAGE_LABELS: Record<string, string> = {
   FINAL: "Gran Final",
 };
 
-function getFlag(name: string): string {
-  switch (name.toLowerCase().trim()) {
-    case "brasil":           return "🇧🇷"; // 🇧🇷
-    case "argentina":        return "🇦🇷"; // 🇦🇷
-    case "francia":          return "🇫🇷"; // 🇫🇷
-    case "alemania":         return "🇩🇪"; // 🇩🇪
-    case "españa":           return "🇪🇸"; // 🇪🇸
-    case "portugal":         return "🇵🇹"; // 🇵🇹
-    case "inglaterra":       return "🏴󠁧󠁢󠁥󠁮󠁧󠁿"; // 🏴󠁧󠁢󠁥󠁮󠁧󠁿
-    case "países bajos":     return "🇳🇱"; // 🇳🇱
-    case "holanda":          return "🇳🇱"; // 🇳🇱
-    case "uruguay":          return "🇺🇾"; // 🇺🇾
-    case "colombia":         return "🇨🇴"; // 🇨🇴
-    case "méxico":
-    case "mexico":           return "🇲🇽"; // 🇲🇽
-    case "estados unidos":
-    case "usa":              return "🇺🇸"; // 🇺🇸
-    case "canadá":
-    case "canada":           return "🇨🇦"; // 🇨🇦
-    case "marruecos":        return "🇲🇦"; // 🇲🇦
-    case "senegal":          return "🇸🇳"; // 🇸🇳
-    case "japón":
-    case "japon":            return "🇯🇵"; // 🇯🇵
-    case "corea del sur":    return "🇰🇷"; // 🇰🇷
-    case "australia":        return "🇦🇺"; // 🇦🇺
-    case "croacia":          return "🇭🇷"; // 🇭🇷
-    case "bélgica":
-    case "belgica":          return "🇧🇪"; // 🇧🇪
-    case "suiza":            return "🇨🇭"; // 🇨🇭
-    case "italia":           return "🇮🇹"; // 🇮🇹
-    case "polonia":          return "🇵🇱"; // 🇵🇱
-    case "serbia":           return "🇷🇸"; // 🇷🇸
-    case "dinamarca":        return "🇩🇰"; // 🇩🇰
-    case "ecuador":          return "🇪🇨"; // 🇪🇨
-    case "perú":
-    case "peru":             return "🇵🇪"; // 🇵🇪
-    case "chile":            return "🇨🇱"; // 🇨🇱
-    case "venezuela":        return "🇻🇪"; // 🇻🇪
-    case "ghana":            return "🇬🇭"; // 🇬🇭
-    case "nigeria":          return "🇳🇬"; // 🇳🇬
-    case "turquía":
-    case "turquia":          return "🇹🇷"; // 🇹🇷
-    case "ucrania":          return "🇺🇦"; // 🇺🇦
-    case "austria":          return "🇦🇹"; // 🇦🇹
-    case "escocia":          return "🏴󠁧󠁢󠁳󠁣󠁴󠁿"; // 🏴󠁧󠁢󠁳󠁣󠁴󠁿
-    case "gales":            return "🏴󠁧󠁢󠁷󠁬󠁳󠁿"; // 🏴󠁧󠁢󠁷󠁬󠁳󠁿
-    case "grecia":           return "🇬🇷"; // 🇬🇷
-    default:                 return "🏳️";        // 🏳️
-  }
-}
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -106,12 +76,12 @@ export default function MatchCard({ match }: Props) {
 
         {/* Teams */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 40, lineHeight: 1, userSelect: "none" }}>
-                {getFlag(match.home_team)}
-              </span>
-            </div>
+          <div className="flex flex-col items-center gap-2 flex-1 text-center">
+            <img
+              src={getFlagUrl(match.home_team)}
+              alt={match.home_team}
+              style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 4 }}
+            />
             <span className="text-sm font-semibold text-white leading-tight">
               {match.home_team}
             </span>
@@ -121,12 +91,12 @@ export default function MatchCard({ match }: Props) {
             <span className="text-lg font-bold text-slate-400">vs</span>
           </div>
 
-          <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 40, lineHeight: 1, userSelect: "none" }}>
-                {getFlag(match.away_team)}
-              </span>
-            </div>
+          <div className="flex flex-col items-center gap-2 flex-1 text-center">
+            <img
+              src={getFlagUrl(match.away_team)}
+              alt={match.away_team}
+              style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 4 }}
+            />
             <span className="text-sm font-semibold text-white leading-tight">
               {match.away_team}
             </span>
