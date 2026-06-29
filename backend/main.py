@@ -45,6 +45,12 @@ try:
 except ImportError:
     pass
 
+try:
+    from backend.routers import admin
+    app.include_router(admin.router)
+except ImportError:
+    pass
+
 
 @app.get("/")
 async def health_check():

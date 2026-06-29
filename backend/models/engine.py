@@ -4,9 +4,13 @@ from datetime import datetime, timezone
 import aiosqlite
 
 from backend.models.dixon_coles import DixonColesModel
+from backend.models.ml.train import load_models, predict_cards, predict_corners
 from backend.models.monte_carlo import simulate
 from backend.models.odds_parser import find_value_bets, strip_margin
 from backend.models.poisson import PoissonModel
+
+# Load ML models once at import time (None if not yet trained)
+_corners_model, _cards_model = load_models()
 
 
 async def _load_match(match_id: int, db: aiosqlite.Connection) -> dict:
@@ -98,13 +102,17 @@ async def generate_report(match_id: int, db: aiosqlite.Connection) -> dict:
     ou35 = pm.over_under(matrix, 3.5)
 
     # --- Monte Carlo simulation ---
-    is_knockout = match.get("stage", "").upper() not in ("GS", "GROUP", "GROUP_STAGE", "")
     mc = simulate(lambda_h, lambda_a, n=10_000, is_knockout=is_knockout)
 
     # Blend Poisson marginals (50%) with MC (50%) for smoother estimates
     prob_home = round((marginals["prob_home"] + mc["prob_home"]) / 2, 4)
     prob_draw = round((marginals["prob_draw"] + mc["prob_draw"]) / 2, 4)
     prob_away = round((marginals["prob_away"] + mc["prob_away"]) / 2, 4)
+
+    # --- ML: corners & cards ---
+    is_knockout = match.get("stage", "").upper() not in ("GS", "GROUP", "GROUP_STAGE", "")
+    corners = predict_corners(home_stats, away_stats, is_knockout, model=_corners_model)
+    cards   = predict_cards(home_stats, away_stats, model=_cards_model)
 
     # --- Asian handicap ---
     asian_hc = _asian_handicap(marginals["prob_home"], matrix)
@@ -137,9 +145,11 @@ async def generate_report(match_id: int, db: aiosqlite.Connection) -> dict:
              xg_home, xg_away,
              prob_over_25, prob_under_25, prob_over_35,
              asian_handicap,
+             corners_home_pred, corners_away_pred,
+             yellow_home_pred, yellow_away_pred,
              prob_extra_time, prob_penalties,
              score_matrix, combined_probs, value_bets)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(match_id) DO UPDATE SET
             generated_at=excluded.generated_at,
             prob_home=excluded.prob_home, prob_draw=excluded.prob_draw, prob_away=excluded.prob_away,
@@ -147,6 +157,10 @@ async def generate_report(match_id: int, db: aiosqlite.Connection) -> dict:
             prob_over_25=excluded.prob_over_25, prob_under_25=excluded.prob_under_25,
             prob_over_35=excluded.prob_over_35,
             asian_handicap=excluded.asian_handicap,
+            corners_home_pred=excluded.corners_home_pred,
+            corners_away_pred=excluded.corners_away_pred,
+            yellow_home_pred=excluded.yellow_home_pred,
+            yellow_away_pred=excluded.yellow_away_pred,
             prob_extra_time=excluded.prob_extra_time, prob_penalties=excluded.prob_penalties,
             score_matrix=excluded.score_matrix,
             combined_probs=excluded.combined_probs,
@@ -159,6 +173,8 @@ async def generate_report(match_id: int, db: aiosqlite.Connection) -> dict:
             round(ou25["prob_over"], 4), round(ou25["prob_under"], 4),
             round(ou35["prob_over"], 4),
             json.dumps(asian_hc),
+            corners["home"], corners["away"],
+            cards["home"], cards["away"],
             round(mc["prob_extra_time"], 4), round(mc["prob_penalties"], 4),
             json.dumps(matrix.tolist()),
             json.dumps(mc),
@@ -183,6 +199,8 @@ async def generate_report(match_id: int, db: aiosqlite.Connection) -> dict:
         "prob_extra_time": round(mc["prob_extra_time"], 4),
         "prob_penalties":  round(mc["prob_penalties"], 4),
         "prob_btts":       round(mc["prob_btts"], 4),
+        "corners":         corners,
+        "cards":           cards,
         "score_matrix":    matrix.tolist(),
         "combined_probs":  mc,
         "value_bets":      value_bets,
