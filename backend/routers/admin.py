@@ -33,7 +33,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 # ── Auth dependency ────────────────────────────────────────────────────────────
 
 async def require_admin(x_admin_key: str = Header(default=""), db=Depends(get_db)):
-    if x_admin_key != settings.secret_key:
+    if x_admin_key != settings.SECRET_KEY:
         raise HTTPException(status_code=403, detail="Invalid admin key")
     return db
 
