@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Match } from "@/lib/api";
 import { getToken } from "@/lib/tokens";
+import { getFlag } from "@/lib/flags";
 import PaywallModal from "./PaywallModal";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -56,7 +57,9 @@ export default function MatchCard({ match }: Props) {
         {/* Teams */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <span className="text-4xl">⚽</span>
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-700/60 text-[26px]">
+              {getFlag(match.home_team)}
+            </div>
             <span className="text-sm font-semibold text-white leading-tight">
               {match.home_team}
             </span>
@@ -67,7 +70,9 @@ export default function MatchCard({ match }: Props) {
           </div>
 
           <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <span className="text-4xl">⚽</span>
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-700/60 text-[26px]">
+              {getFlag(match.away_team)}
+            </div>
             <span className="text-sm font-semibold text-white leading-tight">
               {match.away_team}
             </span>
