@@ -29,6 +29,7 @@ class PaymentResponse(BaseModel):
     payment_id: int
     status: str
     token: Optional[str] = None
+    expires_at: Optional[str] = None
 
 
 class PredictionReport(BaseModel):

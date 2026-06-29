@@ -73,6 +73,7 @@ async def verify_payment(
     body: PaymentVerify,
     db: aiosqlite.Connection = Depends(get_db),
 ):
+    # 1. Find payment by op_number
     cursor = await db.execute(
         "SELECT id, status FROM payments WHERE op_number = ?",
         (body.op_number,),
@@ -84,37 +85,59 @@ async def verify_payment(
             detail="Payment not found",
         )
 
-    if payment["status"] == "verified":
-        # Return existing token if already verified
+    payment_id = payment["id"]
+    pmt_status = payment["status"]
+
+    # 2. Rejected → 400
+    if pmt_status == "rejected":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment was rejected",
+        )
+
+    # 3. Already verified → return existing token
+    if pmt_status == "verified":
         cursor = await db.execute(
-            "SELECT token FROM access_tokens WHERE payment_id = ? ORDER BY created_at DESC LIMIT 1",
-            (payment["id"],),
+            """
+            SELECT token, expires_at FROM access_tokens
+            WHERE payment_id = ?
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (payment_id,),
         )
         row = await cursor.fetchone()
         return PaymentResponse(
-            payment_id=payment["id"],
+            payment_id=payment_id,
             status="verified",
             token=row["token"] if row else None,
+            expires_at=row["expires_at"] if row else None,
         )
 
-    if payment["status"] != "pending":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment is in status '{payment['status']}' and cannot be verified",
+    # 4. Pending → verify, generate token, return it
+    if pmt_status == "pending":
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(hours=TOKEN_TTL_HOURS)
+        token = generate_token()
+
+        await db.execute(
+            "UPDATE payments SET status = 'verified', verified_at = ? WHERE id = ?",
+            (now.isoformat(), payment_id),
+        )
+        await db.execute(
+            "INSERT INTO access_tokens (payment_id, token, expires_at) VALUES (?, ?, ?)",
+            (payment_id, token, expires_at.isoformat()),
+        )
+        await db.commit()
+
+        return PaymentResponse(
+            payment_id=payment_id,
+            status="verified",
+            token=token,
+            expires_at=expires_at.isoformat(),
         )
 
-    now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(hours=TOKEN_TTL_HOURS)
-    token = generate_token()
-
-    await db.execute(
-        "UPDATE payments SET status = 'verified', verified_at = ? WHERE id = ?",
-        (now.isoformat(), payment["id"]),
+    # 5. Unknown status
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Payment status '{pmt_status}' cannot be verified",
     )
-    await db.execute(
-        "INSERT INTO access_tokens (payment_id, token, expires_at) VALUES (?, ?, ?)",
-        (payment["id"], token, expires_at.isoformat()),
-    )
-    await db.commit()
-
-    return PaymentResponse(payment_id=payment["id"], status="verified", token=token)

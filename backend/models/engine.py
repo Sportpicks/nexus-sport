@@ -88,6 +88,8 @@ async def generate_report(match_id: int, db: aiosqlite.Connection) -> dict:
     home_stats = await _load_team_stats(match["home_team_id"], db)
     away_stats = await _load_team_stats(match["away_team_id"], db)
 
+    is_knockout = match.get("stage", "").upper() not in ("GS", "GROUP", "GROUP_STAGE", "")
+
     # --- Dixon-Coles prediction ---
     dc = DixonColesModel()
     lambdas = dc.predict(home_stats, away_stats)
@@ -110,7 +112,6 @@ async def generate_report(match_id: int, db: aiosqlite.Connection) -> dict:
     prob_away = round((marginals["prob_away"] + mc["prob_away"]) / 2, 4)
 
     # --- ML: corners & cards ---
-    is_knockout = match.get("stage", "").upper() not in ("GS", "GROUP", "GROUP_STAGE", "")
     corners = predict_corners(home_stats, away_stats, is_knockout, model=_corners_model)
     cards   = predict_cards(home_stats, away_stats, model=_cards_model)
 
