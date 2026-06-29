@@ -44,8 +44,8 @@ export interface PredictionReport {
   prob_extra_time: number;
   prob_penalties: number;
   prob_btts: number;
-  corners: { home: number; away: number; total: number };
-  cards: { home: number; away: number; total: number };
+  corners?: { home?: number; away?: number; total?: number; home_pred?: number; away_pred?: number } | null;
+  cards?: { home?: number; away?: number; total?: number; home_pred?: number; away_pred?: number } | null;
   value_bets: Array<{
     outcome: string;
     market: string;

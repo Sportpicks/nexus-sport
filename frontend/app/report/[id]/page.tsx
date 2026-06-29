@@ -41,8 +41,16 @@ function Section({
   );
 }
 
-function pct(v: number) {
-  return `${(v * 100).toFixed(1)}%`;
+function pct(v: number | null | undefined) {
+  return `${((v ?? 0) * 100).toFixed(1)}%`;
+}
+
+function fix1(v: number | null | undefined) {
+  return (v ?? 0).toFixed(1);
+}
+
+function fix2(v: number | null | undefined) {
+  return (v ?? 0).toFixed(2);
 }
 
 export default function ReportPage() {
@@ -99,25 +107,31 @@ export default function ReportPage() {
 
   if (!report) return null;
 
-  const {
-    home_team,
-    away_team,
-    prob_home,
-    prob_draw,
-    prob_away,
-    xg_home,
-    xg_away,
-    prob_over_25,
-    prob_under_25,
-    prob_over_35,
-    asian_handicap,
-    prob_extra_time,
-    prob_penalties,
-    prob_btts,
-    corners,
-    cards,
-    value_bets,
-  } = report;
+  const home_team = report.home_team ?? "Local";
+  const away_team = report.away_team ?? "Visitante";
+
+  // Corners: backend returns { home, away, total } but DB columns are
+  // corners_home_pred / corners_away_pred — handle both shapes
+  const cornersHome =
+    report.corners?.home ?? report.corners?.home_pred ?? 0;
+  const cornersAway =
+    report.corners?.away ?? report.corners?.away_pred ?? 0;
+  const cornersTotal =
+    report.corners?.total ?? cornersHome + cornersAway;
+
+  const cardsHome =
+    report.cards?.home ?? report.cards?.home_pred ?? 0;
+  const cardsAway =
+    report.cards?.away ?? report.cards?.away_pred ?? 0;
+  const cardsTotal =
+    report.cards?.total ?? cardsHome + cardsAway;
+
+  const asianHandicap =
+    report.asian_handicap && typeof report.asian_handicap === "object"
+      ? (report.asian_handicap as Record<string, number>)
+      : {};
+
+  const valueBets = report.value_bets ?? [];
 
   return (
     <main className="min-h-screen bg-slate-950 text-white pb-16">
@@ -144,9 +158,9 @@ export default function ReportPage() {
         <Section title="🏆 Resultado 1X2">
           <div className="grid grid-cols-3 gap-3 mb-1">
             {[
-              { label: home_team, prob: prob_home, key: "home" },
-              { label: "Empate", prob: prob_draw, key: "draw" },
-              { label: away_team, prob: prob_away, key: "away" },
+              { label: home_team, prob: report.prob_home, key: "home" },
+              { label: "Empate",  prob: report.prob_draw, key: "draw" },
+              { label: away_team, prob: report.prob_away, key: "away" },
             ].map(({ label, prob, key }) => (
               <div
                 key={key}
@@ -166,77 +180,103 @@ export default function ReportPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-slate-700/50 p-3 text-center">
               <p className="text-xs text-slate-400">{home_team}</p>
-              <p className="text-2xl font-bold text-violet-400">{xg_home}</p>
+              <p className="text-2xl font-bold text-violet-400">
+                {fix1(report.xg_home)}
+              </p>
             </div>
             <div className="rounded-xl bg-slate-700/50 p-3 text-center">
               <p className="text-xs text-slate-400">{away_team}</p>
-              <p className="text-2xl font-bold text-violet-400">{xg_away}</p>
+              <p className="text-2xl font-bold text-violet-400">
+                {fix1(report.xg_away)}
+              </p>
             </div>
           </div>
         </Section>
 
         {/* Over / Under */}
         <Section title="⚽ Goles Over/Under">
-          <Stat label="Over 2.5" value={pct(prob_over_25)} highlight={prob_over_25 > 0.55} />
-          <Stat label="Under 2.5" value={pct(prob_under_25)} />
-          <Stat label="Over 3.5" value={pct(prob_over_35)} highlight={prob_over_35 > 0.5} />
-          <Stat label="Ambos anotan (BTTS)" value={pct(prob_btts)} highlight={prob_btts > 0.55} />
+          <Stat
+            label="Over 2.5"
+            value={pct(report.prob_over_25)}
+            highlight={(report.prob_over_25 ?? 0) > 0.55}
+          />
+          <Stat label="Under 2.5" value={pct(report.prob_under_25)} />
+          <Stat
+            label="Over 3.5"
+            value={pct(report.prob_over_35)}
+            highlight={(report.prob_over_35 ?? 0) > 0.5}
+          />
+          <Stat
+            label="Ambos anotan (BTTS)"
+            value={pct(report.prob_btts)}
+            highlight={(report.prob_btts ?? 0) > 0.55}
+          />
         </Section>
 
         {/* Asian Handicap */}
         <Section title="🎯 Hándicap Asiático">
-          {Object.entries(asian_handicap).map(([line, prob]) => (
-            <Stat key={line} label={`${home_team} ${line}`} value={pct(prob)} />
-          ))}
+          {Object.keys(asianHandicap).length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-1">
+              Sin datos de hándicap.
+            </p>
+          ) : (
+            Object.entries(asianHandicap).map(([line, prob]) => (
+              <Stat
+                key={line}
+                label={`${home_team} ${line}`}
+                value={pct(prob)}
+              />
+            ))
+          )}
         </Section>
 
         {/* Corners */}
         <Section title="🚩 Córners Proyectados">
-          <Stat label={`${home_team}`} value={corners.home.toFixed(1)} />
-          <Stat label={`${away_team}`} value={corners.away.toFixed(1)} />
-          <Stat label="Total esperado" value={corners.total.toFixed(1)} highlight />
+          <Stat label={home_team} value={fix1(cornersHome)} />
+          <Stat label={away_team} value={fix1(cornersAway)} />
+          <Stat label="Total esperado" value={fix1(cornersTotal)} highlight />
         </Section>
 
         {/* Cards */}
         <Section title="🟨 Tarjetas Amarillas">
-          <Stat label={`${home_team}`} value={cards.home.toFixed(1)} />
-          <Stat label={`${away_team}`} value={cards.away.toFixed(1)} />
-          <Stat label="Total esperado" value={cards.total.toFixed(1)} highlight />
+          <Stat label={home_team} value={fix1(cardsHome)} />
+          <Stat label={away_team} value={fix1(cardsAway)} />
+          <Stat label="Total esperado" value={fix1(cardsTotal)} highlight />
         </Section>
 
         {/* Extra time / Penalties */}
         <Section title="⏱️ Prórroga y Penales">
-          <Stat label="Prórroga" value={pct(prob_extra_time)} />
-          <Stat label="Penales" value={pct(prob_penalties)} />
+          <Stat label="Prórroga" value={pct(report.prob_extra_time)} />
+          <Stat label="Penales"  value={pct(report.prob_penalties)} />
         </Section>
 
         {/* Value Bets */}
         <Section title="💰 Value Bets">
-          {value_bets.length === 0 ? (
+          {valueBets.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-2">
               Sin value bets detectadas en este partido.
             </p>
           ) : (
             <div className="space-y-3">
-              {value_bets.map((vb, i) => (
+              {valueBets.map((vb, i) => (
                 <div
                   key={i}
                   className="flex items-center justify-between rounded-xl bg-green-900/20 border border-green-700/40 px-4 py-3"
                 >
                   <div>
                     <p className="text-sm font-semibold text-white">
-                      {vb.market} · {vb.outcome}
+                      {vb?.market ?? "—"} · {vb?.outcome ?? "—"}
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Nuestra prob: {pct(vb.our_prob)}
+                      Nuestra prob: {pct(vb?.our_prob)}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-green-400">
-                      {vb.decimal_odd.toFixed(2)}
+                      {fix2(vb?.decimal_odd)}
                     </p>
                     <p className="text-xs text-green-500">
-                      +{pct(vb.edge)} edge
+                      +{pct(vb?.edge)} edge
                     </p>
                   </div>
                 </div>
