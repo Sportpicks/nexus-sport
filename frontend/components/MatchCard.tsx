@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Match } from "@/lib/api";
 import { getToken } from "@/lib/tokens";
-import { getFlag } from "@/lib/flags";
 import PaywallModal from "./PaywallModal";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -15,6 +14,57 @@ const STAGE_LABELS: Record<string, string> = {
   THIRD_PLACE: "Tercer Puesto",
   FINAL: "Gran Final",
 };
+
+function getFlag(name: string): string {
+  switch (name.toLowerCase().trim()) {
+    case "brasil":           return "🇧🇷"; // 🇧🇷
+    case "argentina":        return "🇦🇷"; // 🇦🇷
+    case "francia":          return "🇫🇷"; // 🇫🇷
+    case "alemania":         return "🇩🇪"; // 🇩🇪
+    case "españa":           return "🇪🇸"; // 🇪🇸
+    case "portugal":         return "🇵🇹"; // 🇵🇹
+    case "inglaterra":       return "🏴󠁧󠁢󠁥󠁮󠁧󠁿"; // 🏴󠁧󠁢󠁥󠁮󠁧󠁿
+    case "países bajos":     return "🇳🇱"; // 🇳🇱
+    case "holanda":          return "🇳🇱"; // 🇳🇱
+    case "uruguay":          return "🇺🇾"; // 🇺🇾
+    case "colombia":         return "🇨🇴"; // 🇨🇴
+    case "méxico":
+    case "mexico":           return "🇲🇽"; // 🇲🇽
+    case "estados unidos":
+    case "usa":              return "🇺🇸"; // 🇺🇸
+    case "canadá":
+    case "canada":           return "🇨🇦"; // 🇨🇦
+    case "marruecos":        return "🇲🇦"; // 🇲🇦
+    case "senegal":          return "🇸🇳"; // 🇸🇳
+    case "japón":
+    case "japon":            return "🇯🇵"; // 🇯🇵
+    case "corea del sur":    return "🇰🇷"; // 🇰🇷
+    case "australia":        return "🇦🇺"; // 🇦🇺
+    case "croacia":          return "🇭🇷"; // 🇭🇷
+    case "bélgica":
+    case "belgica":          return "🇧🇪"; // 🇧🇪
+    case "suiza":            return "🇨🇭"; // 🇨🇭
+    case "italia":           return "🇮🇹"; // 🇮🇹
+    case "polonia":          return "🇵🇱"; // 🇵🇱
+    case "serbia":           return "🇷🇸"; // 🇷🇸
+    case "dinamarca":        return "🇩🇰"; // 🇩🇰
+    case "ecuador":          return "🇪🇨"; // 🇪🇨
+    case "perú":
+    case "peru":             return "🇵🇪"; // 🇵🇪
+    case "chile":            return "🇨🇱"; // 🇨🇱
+    case "venezuela":        return "🇻🇪"; // 🇻🇪
+    case "ghana":            return "🇬🇭"; // 🇬🇭
+    case "nigeria":          return "🇳🇬"; // 🇳🇬
+    case "turquía":
+    case "turquia":          return "🇹🇷"; // 🇹🇷
+    case "ucrania":          return "🇺🇦"; // 🇺🇦
+    case "austria":          return "🇦🇹"; // 🇦🇹
+    case "escocia":          return "🏴󠁧󠁢󠁳󠁣󠁴󠁿"; // 🏴󠁧󠁢󠁳󠁣󠁴󠁿
+    case "gales":            return "🏴󠁧󠁢󠁷󠁬󠁳󠁿"; // 🏴󠁧󠁢󠁷󠁬󠁳󠁿
+    case "grecia":           return "🇬🇷"; // 🇬🇷
+    default:                 return "🏳️";        // 🏳️
+  }
+}
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -57,9 +107,11 @@ export default function MatchCard({ match }: Props) {
         {/* Teams */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <span style={{ fontSize: "36px", lineHeight: "1" }}>
-              {getFlag(match.home_team)}
-            </span>
+            <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 40, lineHeight: 1, userSelect: "none" }}>
+                {getFlag(match.home_team)}
+              </span>
+            </div>
             <span className="text-sm font-semibold text-white leading-tight">
               {match.home_team}
             </span>
@@ -70,9 +122,11 @@ export default function MatchCard({ match }: Props) {
           </div>
 
           <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <span style={{ fontSize: "36px", lineHeight: "1" }}>
-              {getFlag(match.away_team)}
-            </span>
+            <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 40, lineHeight: 1, userSelect: "none" }}>
+                {getFlag(match.away_team)}
+              </span>
+            </div>
             <span className="text-sm font-semibold text-white leading-tight">
               {match.away_team}
             </span>
