@@ -146,15 +146,11 @@ export default function ReportPage() {
             ← Volver
           </button>
           <div className="flex flex-1 items-center justify-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700/60 text-xl">
-              {getFlag(home_team)}
-            </div>
+            <span style={{ fontSize: "24px", lineHeight: "1" }}>{getFlag(home_team)}</span>
             <p className="text-sm font-semibold">
               {home_team} vs {away_team}
             </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700/60 text-xl">
-              {getFlag(away_team)}
-            </div>
+            <span style={{ fontSize: "24px", lineHeight: "1" }}>{getFlag(away_team)}</span>
           </div>
         </div>
       </header>

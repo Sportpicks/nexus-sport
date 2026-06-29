@@ -57,9 +57,9 @@ export default function MatchCard({ match }: Props) {
         {/* Teams */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-700/60 text-[26px]">
+            <span style={{ fontSize: "36px", lineHeight: "1" }}>
               {getFlag(match.home_team)}
-            </div>
+            </span>
             <span className="text-sm font-semibold text-white leading-tight">
               {match.home_team}
             </span>
@@ -70,9 +70,9 @@ export default function MatchCard({ match }: Props) {
           </div>
 
           <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-700/60 text-[26px]">
+            <span style={{ fontSize: "36px", lineHeight: "1" }}>
               {getFlag(match.away_team)}
-            </div>
+            </span>
             <span className="text-sm font-semibold text-white leading-tight">
               {match.away_team}
             </span>
