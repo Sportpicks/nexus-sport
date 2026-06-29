@@ -98,3 +98,44 @@ export const getReport = (
   apiFetch<PredictionReport>(`/predictions/${match_id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+// ── Admin types ───────────────────────────────────────────────────────────────
+
+export interface AdminPayment {
+  id: number;
+  op_number: string;
+  method: string;
+  amount: number;
+  status: "pending" | "verified" | "rejected";
+  created_at: string;
+  email: string | null;
+  match_name: string | null;
+}
+
+export interface AdminDashboard {
+  total_pagos: number;
+  pagos_pendientes: number;
+  pagos_verificados: number;
+  ingresos_total_usd: number;
+}
+
+// ── Admin API calls ───────────────────────────────────────────────────────────
+
+function adminFetch<T>(path: string, apiKey: string, options: RequestInit = {}): Promise<T> {
+  return apiFetch<T>(path, {
+    ...options,
+    headers: { "X-Admin-Key": apiKey, ...(options.headers ?? {}) },
+  });
+}
+
+export const getAdminDashboard = (apiKey: string): Promise<AdminDashboard> =>
+  adminFetch<AdminDashboard>("/admin/dashboard", apiKey);
+
+export const getAdminPayments = (apiKey: string): Promise<AdminPayment[]> =>
+  adminFetch<AdminPayment[]>("/admin/payments", apiKey);
+
+export const adminVerifyPayment = (payment_id: number, apiKey: string) =>
+  adminFetch<{ status: string; token: string }>(`/admin/payments/${payment_id}/verify`, apiKey, { method: "POST" });
+
+export const adminRejectPayment = (payment_id: number, apiKey: string) =>
+  adminFetch<{ status: string }>(`/admin/payments/${payment_id}/reject`, apiKey, { method: "POST" });
