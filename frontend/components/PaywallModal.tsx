@@ -17,7 +17,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Step = "instructions" | "verify" | "loading" | "error" | "success";
+type Step = "form" | "loading" | "pending" | "error" | "success";
 
 const YAPE_NUMBER = process.env.NEXT_PUBLIC_YAPE_NUMBER || "999-000-000";
 const PLIN_NUMBER = process.env.NEXT_PUBLIC_PLIN_NUMBER || "999-000-001";
@@ -30,7 +30,7 @@ export default function PaywallModal({
   onClose,
 }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("instructions");
+  const [step, setStep] = useState<Step>("form");
   const [method, setMethod] = useState<"yape" | "plin">("yape");
   const [opNumber, setOpNumber] = useState("");
   const [email, setEmail] = useState("");
@@ -38,7 +38,29 @@ export default function PaywallModal({
 
   const destNumber = method === "yape" ? YAPE_NUMBER : PLIN_NUMBER;
 
-  async function handleVerify() {
+  // Core verify logic — called both on first submit and on retry
+  async function tryVerify(op: string) {
+    setStep("loading");
+    setErrorMsg("");
+    try {
+      const result = await verifyPayment(op);
+      if (result.token && result.expires_at) {
+        saveToken(matchId, result.token, result.expires_at);
+        setStep("success");
+        setTimeout(() => router.push(`/report/${matchId}`), 1000);
+      } else {
+        // Payment exists but still pending admin approval
+        setStep("pending");
+      }
+    } catch (err: unknown) {
+      setStep("error");
+      setErrorMsg(
+        err instanceof Error ? err.message : "Error al verificar el pago."
+      );
+    }
+  }
+
+  async function handleSubmit() {
     if (!opNumber.trim() || !email.trim()) {
       setErrorMsg("Completa todos los campos.");
       return;
@@ -46,37 +68,33 @@ export default function PaywallModal({
     setStep("loading");
     setErrorMsg("");
 
+    const op = opNumber.trim();
+
     try {
       const payload: PaymentSubmitPayload = {
         match_id: matchId,
-        op_number: opNumber.trim(),
+        op_number: op,
         method,
         email: email.trim(),
       };
-
-      // Submit payment record
       await submitPayment(payload);
-
-      // Verify and get token
-      const result = await verifyPayment(opNumber.trim());
-
-      if (result.token && result.expires_at) {
-        saveToken(matchId, result.token, result.expires_at);
-        setStep("success");
-        setTimeout(() => router.push(`/report/${matchId}`), 1200);
-      } else {
-        setStep("error");
-        setErrorMsg(
-          result.message ||
-            "Pago pendiente de verificación. Inténtalo en unos minutos."
-        );
-      }
     } catch (err: unknown) {
-      setStep("error");
-      setErrorMsg(
-        err instanceof Error ? err.message : "Error al procesar el pago."
-      );
+      const msg = err instanceof Error ? err.message : "";
+      // 422 = op_number already registered — that's fine, proceed to verify
+      if (!msg.includes("422")) {
+        setStep("error");
+        setErrorMsg(msg || "Error al registrar el pago.");
+        return;
+      }
     }
+
+    // Whether new or already registered, attempt verification immediately
+    await tryVerify(op);
+  }
+
+  async function handleRetry() {
+    // Re-run verify with the op_number the user already entered
+    await tryVerify(opNumber.trim());
   }
 
   return (
@@ -84,9 +102,7 @@ export default function PaywallModal({
       <div className="w-full max-w-md rounded-2xl bg-slate-900 text-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-700 p-5">
-          <h2 className="text-lg font-semibold">
-            🔐 Acceso al reporte
-          </h2>
+          <h2 className="text-lg font-semibold">🔐 Acceso al reporte</h2>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-white transition-colors text-xl leading-none"
@@ -101,8 +117,8 @@ export default function PaywallModal({
             {homeTeam} vs {awayTeam}
           </p>
 
-          {/* Step: instructions */}
-          {(step === "instructions" || step === "verify") && (
+          {/* ── Step: form ── */}
+          {step === "form" && (
             <>
               {/* Method selector */}
               <div className="flex gap-2">
@@ -139,7 +155,7 @@ export default function PaywallModal({
                 </p>
               </div>
 
-              {/* Form */}
+              {/* Form fields */}
               <div className="space-y-3">
                 <input
                   type="email"
@@ -162,7 +178,7 @@ export default function PaywallModal({
               )}
 
               <button
-                onClick={handleVerify}
+                onClick={handleSubmit}
                 className="w-full rounded-xl bg-violet-600 py-3 font-semibold text-white hover:bg-violet-500 transition-colors"
               >
                 Verificar pago →
@@ -170,38 +186,68 @@ export default function PaywallModal({
             </>
           )}
 
-          {/* Step: loading */}
+          {/* ── Step: loading ── */}
           {step === "loading" && (
             <div className="flex flex-col items-center gap-4 py-6">
               <div className="h-10 w-10 rounded-full border-4 border-violet-500 border-t-transparent animate-spin" />
-              <p className="text-slate-300 text-sm">Verificando pago...</p>
+              <p className="text-slate-300 text-sm">Verificando pago…</p>
             </div>
           )}
 
-          {/* Step: error */}
+          {/* ── Step: pending ── */}
+          {step === "pending" && (
+            <div className="space-y-4 text-center py-2">
+              <p className="text-4xl">⏳</p>
+              <p className="text-slate-300 text-sm font-semibold">
+                Pago pendiente de confirmación
+              </p>
+              <p className="text-slate-400 text-xs">
+                N° operación: <span className="text-white">{opNumber}</span>
+              </p>
+              <p className="text-slate-400 text-xs">
+                Si ya realizaste el pago, espera unos minutos y vuelve a intentarlo.
+              </p>
+              <button
+                onClick={handleRetry}
+                className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 transition-colors"
+              >
+                Reintentar verificación
+              </button>
+              <button
+                onClick={() => setStep("form")}
+                className="text-slate-500 hover:text-slate-300 text-xs underline"
+              >
+                Cambiar N° de operación
+              </button>
+            </div>
+          )}
+
+          {/* ── Step: error ── */}
           {step === "error" && (
             <div className="space-y-4 text-center py-2">
               <p className="text-4xl">⚠️</p>
               <p className="text-red-400 text-sm">{errorMsg}</p>
               <button
-                onClick={() => setStep("instructions")}
-                className="text-violet-400 hover:text-violet-300 text-sm underline"
+                onClick={handleRetry}
+                className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 transition-colors"
               >
                 Intentar de nuevo
+              </button>
+              <button
+                onClick={() => setStep("form")}
+                className="text-slate-500 hover:text-slate-300 text-xs underline"
+              >
+                Cambiar N° de operación
               </button>
             </div>
           )}
 
-          {/* Step: success */}
+          {/* ── Step: success ── */}
           {step === "success" && (
             <div className="flex flex-col items-center gap-3 py-4 text-center">
               <p className="text-4xl">✅</p>
-              <p className="text-green-400 font-semibold">
-                ¡Pago verificado!
-              </p>
-              <p className="text-slate-400 text-sm">
-                Redirigiendo al reporte…
-              </p>
+              <p className="text-green-400 font-semibold">¡Pago verificado!</p>
+              <p className="text-slate-400 text-sm">Redirigiendo al reporte…</p>
             </div>
           )}
         </div>
