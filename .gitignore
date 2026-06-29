@@ -8,3 +8,9 @@ db/*.db
 dist/
 build/
 .pytest_cache/
+*.joblib
+backend/models/ml/saved/
+.next/
+node_modules/
+frontend/.next/
+frontend/node_modules/
