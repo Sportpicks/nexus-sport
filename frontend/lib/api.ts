@@ -124,7 +124,7 @@ export interface AdminDashboard {
 async function adminFetch<T>(path: string, apiKey: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api/admin/${path}`, {
     ...options,
-    headers: { "x-admin-key": apiKey, ...(options.headers ?? {}) },
+    headers: { "x-admin-key": apiKey, "Content-Type": "application/json", ...(options.headers ?? {}) },
   });
   if (!res.ok) {
     const body = await res.text();
