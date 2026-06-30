@@ -124,7 +124,7 @@ export interface AdminDashboard {
 function adminFetch<T>(path: string, apiKey: string, options: RequestInit = {}): Promise<T> {
   return apiFetch<T>(path, {
     ...options,
-    headers: { "X-Admin-Key": apiKey, ...(options.headers ?? {}) },
+    headers: { "x-admin-key": apiKey, ...(options.headers ?? {}) },
   });
 }
 
