@@ -86,6 +86,7 @@ export default function AdminPage() {
       if (dashResult.status === "fulfilled") {
         setDashboard(dashResult.value);
       } else {
+        console.error("Dashboard error:", dashResult.reason);
         setDashboard({ total_pagos: 0, pagos_pendientes: 0, pagos_verificados: 0, ingresos_total_usd: 0 });
       }
 
