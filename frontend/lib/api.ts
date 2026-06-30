@@ -119,23 +119,28 @@ export interface AdminDashboard {
   ingresos_total_usd: number;
 }
 
-// ── Admin API calls ───────────────────────────────────────────────────────────
+// ── Admin API calls (via Next.js proxy /api/admin/* to avoid CORS) ───────────
 
-function adminFetch<T>(path: string, apiKey: string, options: RequestInit = {}): Promise<T> {
-  return apiFetch<T>(path, {
+async function adminFetch<T>(path: string, apiKey: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`/api/admin/${path}`, {
     ...options,
     headers: { "x-admin-key": apiKey, ...(options.headers ?? {}) },
   });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`API ${res.status}: ${body}`);
+  }
+  return res.json() as Promise<T>;
 }
 
 export const getAdminDashboard = (apiKey: string): Promise<AdminDashboard> =>
-  adminFetch<AdminDashboard>("/admin/dashboard", apiKey);
+  adminFetch<AdminDashboard>("dashboard", apiKey);
 
 export const getAdminPayments = (apiKey: string): Promise<AdminPayment[]> =>
-  adminFetch<AdminPayment[]>("/admin/payments", apiKey);
+  adminFetch<AdminPayment[]>("payments", apiKey);
 
 export const adminVerifyPayment = (payment_id: number, apiKey: string) =>
-  adminFetch<{ status: string; token: string }>(`/admin/payments/${payment_id}/verify`, apiKey, { method: "POST" });
+  adminFetch<{ status: string; token: string }>(`payments/${payment_id}/verify`, apiKey, { method: "POST" });
 
 export const adminRejectPayment = (payment_id: number, apiKey: string) =>
-  adminFetch<{ status: string }>(`/admin/payments/${payment_id}/reject`, apiKey, { method: "POST" });
+  adminFetch<{ status: string }>(`payments/${payment_id}/reject`, apiKey, { method: "POST" });
