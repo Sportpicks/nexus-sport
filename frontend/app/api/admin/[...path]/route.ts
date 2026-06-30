@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+async function parseResponse(res: Response) {
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { detail: text };
+  }
+  return NextResponse.json(data, { status: res.status });
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -16,8 +27,7 @@ export async function GET(
   const res = await fetch(url, {
     headers: { "x-admin-key": adminKey, "Content-Type": "application/json" },
   });
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  return parseResponse(res);
 }
 
 export async function POST(
@@ -35,6 +45,5 @@ export async function POST(
     method: "POST",
     headers: { "x-admin-key": adminKey, "Content-Type": "application/json" },
   });
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  return parseResponse(res);
 }
