@@ -65,12 +65,15 @@ async def dashboard(db=Depends(require_admin)):
 async def list_payments(db=Depends(require_admin)):
     cur = await db.execute(
         """
-        SELECT p.id, p.op_number, p.method, p.amount, p.status, p.created_at,
-               u.email,
-               m.home_team || ' vs ' || m.away_team AS match_name
+        SELECT p.id, p.op_number, p.method, p.amount, p.status,
+               p.created_at, p.verified_at, u.email,
+               t1.name AS home_team, t2.name AS away_team,
+               m.id AS match_id, m.match_date, m.stage
         FROM payments p
-        LEFT JOIN users u ON u.id = p.user_id
-        LEFT JOIN matches m ON m.id = p.match_id
+        LEFT JOIN users u ON p.user_id = u.id
+        LEFT JOIN matches m ON p.match_id = m.id
+        LEFT JOIN teams t1 ON m.home_team_id = t1.id
+        LEFT JOIN teams t2 ON m.away_team_id = t2.id
         ORDER BY p.created_at DESC
         """
     )
@@ -83,8 +86,12 @@ async def list_payments(db=Depends(require_admin)):
             "amount": r[3],
             "status": r[4],
             "created_at": r[5],
-            "email": r[6],
-            "match_name": r[7],
+            "verified_at": r[6],
+            "email": r[7],
+            "match_name": f"{r[8]} vs {r[9]}" if r[8] and r[9] else None,
+            "match_id": r[10],
+            "match_date": r[11],
+            "stage": r[12],
         }
         for r in rows
     ]
