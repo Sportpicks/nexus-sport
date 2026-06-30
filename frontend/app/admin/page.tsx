@@ -78,9 +78,23 @@ export default function AdminPage() {
     setLoading(true);
     setError("");
     try {
-      const [dash, pmts] = await Promise.all([getAdminDashboard(key), getAdminPayments(key)]);
-      setDashboard(dash);
-      setPayments(pmts);
+      const [dashResult, pmtsResult] = await Promise.allSettled([
+        getAdminDashboard(key),
+        getAdminPayments(key),
+      ]);
+
+      if (dashResult.status === "fulfilled") {
+        setDashboard(dashResult.value);
+      } else {
+        setDashboard({ total_pagos: 0, pagos_pendientes: 0, pagos_verificados: 0, ingresos_total_usd: 0 });
+      }
+
+      if (pmtsResult.status === "fulfilled") {
+        setPayments(pmtsResult.value);
+      } else {
+        const msg = pmtsResult.reason instanceof Error ? pmtsResult.reason.message : "Error cargando pagos";
+        setError(msg);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Error cargando datos");
     } finally {
