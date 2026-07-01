@@ -90,6 +90,9 @@ export default function MatchRowFree({ match }: Props) {
           }}>{f}</span>
         ))}
       </div>
+      <p style={{ margin: "6px 0 0", fontSize: 11, color: C.dim }}>
+        Forma reciente: últimos 5 partidos del equipo
+      </p>
     </div>
   );
 }

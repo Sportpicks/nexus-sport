@@ -156,8 +156,8 @@ export default function HomePage() {
           </div>
           {/* Banner */}
           <div style={{
-            background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)",
-            borderRadius: 10, padding: "8px 14px", fontSize: 12, color: C.green,
+            background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)",
+            borderRadius: 10, padding: "8px 14px", fontSize: 12, color: "#818CF8",
             display: "flex", alignItems: "center", gap: 8,
           }}>
             <span>🎁</span>

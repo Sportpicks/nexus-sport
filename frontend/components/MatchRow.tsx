@@ -91,7 +91,7 @@ export default function MatchRow({ match, isFree, isExpanded, onToggle }: Props)
             }}>Ver reporte →</button>
           ) : (
             <span style={{ fontSize: 12, fontWeight: 700, color: "#34D399" }}>
-              S/{(match.price_usd * 3.7).toFixed(0)}
+              S/{(match.price_usd * 3.7).toFixed(2)}
             </span>
           )}
 
