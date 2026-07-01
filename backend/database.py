@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 from typing import AsyncGenerator
 
 import aiosqlite
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "db" / "nexus.db"
+_DEFAULT_DB = Path(__file__).resolve().parent.parent / "db" / "nexus.db"
+DB_PATH = Path(os.environ.get("DATABASE_URL", str(_DEFAULT_DB)))
 
 DDL_STATEMENTS = [
     """

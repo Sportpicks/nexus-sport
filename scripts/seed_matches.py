@@ -47,7 +47,7 @@ async def seed():
         for api_id, gs, gc, xgf, xga, spg, cpg, ypg, rpg, poss, atk, dfw in TEAM_STATS:
             cur = await db.execute("SELECT id FROM teams WHERE api_id=?", (api_id,))
             row = await cur.fetchone()
-            team_id = row["id"]
+            team_id = row[0]
             await db.execute(
                 """
                 INSERT OR IGNORE INTO team_stats

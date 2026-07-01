@@ -1,16 +1,42 @@
+import logging
 from contextlib import asynccontextmanager
 
+import aiosqlite
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
-from backend.database import init_db
+from backend.database import DB_PATH, init_db
 from backend.services.scheduler import create_scheduler
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     await init_db()
+
+    # Auto-seed if the database has no matches (Railway ephemeral filesystem)
+    try:
+        async with aiosqlite.connect(DB_PATH) as _db:
+            cur = await _db.execute("SELECT COUNT(*) FROM matches")
+            (count,) = await cur.fetchone()
+        if count == 0:
+            logger.info("Database empty — running auto-seed …")
+            from scripts.seed_matches import seed as _seed
+            await _seed()
+            logger.info("Auto-seed complete. Starting live sync …")
+            try:
+                from backend.services.ingest_service import sync_wc_matches
+                async with aiosqlite.connect(DB_PATH) as _db2:
+                    await sync_wc_matches(_db2)
+                logger.info("Live sync complete.")
+            except Exception as exc:
+                logger.warning("Live sync failed (non-fatal): %s", exc)
+    except Exception as exc:
+        logger.error("Auto-seed error (non-fatal): %s", exc)
+
     scheduler = create_scheduler()
     scheduler.start()
     yield
