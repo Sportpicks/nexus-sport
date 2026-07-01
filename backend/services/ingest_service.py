@@ -36,7 +36,7 @@ _TIMEOUT = httpx.Timeout(20.0)
 
 # Stages that count as knockout (not group stage)
 _KNOCKOUT_STAGES = {
-    "LAST_16", "ROUND_OF_16",
+    "LAST_32", "LAST_16", "ROUND_OF_16",
     "QUARTER_FINALS", "SEMI_FINALS",
     "THIRD_PLACE", "FINAL",
 }
