@@ -84,7 +84,7 @@ async def _upsert_team(db, api_id: int, name: str, country: str) -> int:
     )
     cur = await db.execute("SELECT id FROM teams WHERE api_id = ?", (api_id,))
     row = await cur.fetchone()
-    return row["id"]
+    return row[0]
 
 
 async def sync_wc_matches(db) -> dict:
@@ -212,7 +212,7 @@ async def sync_team_stats(db, team_api_id: int) -> dict:
     row = await cur.fetchone()
     if not row:
         return {"team_api_id": team_api_id, "matches_used": 0, "error": "team not in DB"}
-    team_id = row["id"]
+    team_id = row[0]
 
     await db.execute(
         """
@@ -280,7 +280,7 @@ async def sync_odds(db, match_api_id: int) -> dict:
     match_row = await cur.fetchone()
     if not match_row:
         return {"match_api_id": match_api_id, "rows_upserted": 0, "error": "match not in DB"}
-    match_id = match_row["id"]
+    match_id = match_row[0]
 
     rows_upserted = 0
     now_iso = _now_utc().isoformat()
@@ -324,7 +324,7 @@ async def sync_odds(db, match_api_id: int) -> dict:
     )
     pred = await cur.fetchone()
     if pred:
-        our = {"1": pred["prob_home"], "X": pred["prob_draw"], "2": pred["prob_away"]}
+        our = {"1": pred[0], "X": pred[1], "2": pred[2]}
         cur2 = await db.execute(
             """
             SELECT outcome, MAX(decimal_odd) AS best_odd
@@ -334,7 +334,7 @@ async def sync_odds(db, match_api_id: int) -> dict:
             """,
             (match_id,),
         )
-        bk_odds = {r["outcome"]: r["best_odd"] async for r in cur2}
+        bk_odds = {r[0]: r[1] async for r in cur2}
         if bk_odds:
             value_bets = find_value_bets(our, bk_odds)
 
@@ -379,16 +379,16 @@ async def sync_advanced_stats(db, team_id: int) -> dict:
     )
     row = await cur.fetchone()
 
-    if row and not _is_stale(row["last_synced"]):
+    if row and not _is_stale(row[1]):
         return {"team_id": team_id, "skipped": True, "reason": "synced < 24 h ago"}
 
     # Resolve api_id for API-Football
     cur2 = await db.execute("SELECT api_id FROM teams WHERE id = ?", (team_id,))
     team_row = await cur2.fetchone()
-    if not team_row or not team_row["api_id"]:
+    if not team_row or not team_row[0]:
         return {"team_id": team_id, "skipped": True, "reason": "no api_id"}
 
-    api_team_id = team_row["api_id"]
+    api_team_id = team_row[0]
     url    = f"{settings.SPORTS_API_URL}/teams/statistics"
     params = {"league": 1, "season": 2026, "team": api_team_id}
 
