@@ -26,7 +26,12 @@ _MATCH_PREVIEW_SQL = """
 @router.get("/", response_model=List[MatchPreview])
 async def list_matches(db: aiosqlite.Connection = Depends(get_db)):
     cursor = await db.execute(
-        _MATCH_PREVIEW_SQL + " WHERE m.is_published = 1 ORDER BY m.match_date ASC"
+        _MATCH_PREVIEW_SQL + """
+        WHERE m.is_published = 1
+          AND (m.status != 'FINISHED' OR m.status IS NULL)
+          AND m.match_date >= datetime('now', '-3 hours')
+        ORDER BY m.match_date ASC
+        """
     )
     rows = await cursor.fetchall()
     return [MatchPreview(**dict(row)) for row in rows]

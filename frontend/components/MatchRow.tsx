@@ -8,9 +8,9 @@ import MatchRowFree from "./MatchRowFree";
 import MatchRowPremium from "./MatchRowPremium";
 
 const STAGE_LABELS: Record<string, string> = {
-  LAST_32: "Treintaidosavos", LAST_16: "Octavos", ROUND_OF_16: "Octavos",
-  QUARTER_FINALS: "Cuartos", SEMI_FINALS: "Semifinal",
-  THIRD_PLACE: "3er Puesto", FINAL: "Final",
+  LAST_32: "16avos de final", LAST_16: "Octavos de final", ROUND_OF_16: "Octavos de final",
+  QUARTER_FINALS: "Cuartos de final", SEMI_FINALS: "Semifinal",
+  THIRD_PLACE: "3er lugar", FINAL: "Final",
 };
 
 function formatTime(iso: string) {
