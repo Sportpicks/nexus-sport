@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 from typing import List
 
 import aiosqlite
-from dateutil.parser import parse as parse_dt
+from dateutil.parser import parse as parse_date
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.database import get_db
@@ -13,12 +13,13 @@ router = APIRouter()
 _MATCH_PREVIEW_SQL = """
     SELECT
         m.id,
-        ht.name  AS home_team,
-        at.name  AS away_team,
+        m.status,
         m.match_date,
         m.stage,
         m.price_usd,
         m.is_published,
+        t1.name AS home_team,
+        t2.name AS away_team,
         p.prob_home,
         p.prob_draw,
         p.prob_away,
@@ -26,41 +27,43 @@ _MATCH_PREVIEW_SQL = """
         p.prob_btts,
         p.prob_extra_time
     FROM matches m
-    JOIN  teams ht ON ht.id = m.home_team_id
-    JOIN  teams at ON at.id = m.away_team_id
+    LEFT JOIN teams t1 ON m.home_team_id = t1.id
+    LEFT JOIN teams t2 ON m.away_team_id = t2.id
     LEFT JOIN predictions p ON p.match_id = m.id
+    WHERE m.is_published = 1
+    ORDER BY m.match_date ASC
 """
-
-
-def _parse_match_date(date_str: str | None) -> datetime | None:
-    if not date_str:
-        return None
-    try:
-        dt = parse_dt(date_str)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except Exception:
-        return None
 
 
 @router.get("/", response_model=List[MatchPreview])
 async def list_matches(db: aiosqlite.Connection = Depends(get_db)):
-    cursor = await db.execute(
-        _MATCH_PREVIEW_SQL
-        + " WHERE m.is_published = 1 AND (m.status != 'FINISHED' OR m.status IS NULL)"
-        + " ORDER BY m.match_date ASC"
-    )
+    cursor = await db.execute(_MATCH_PREVIEW_SQL)
     rows = await cursor.fetchall()
 
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=3)
+    now_utc = datetime.now(timezone.utc)
+    cutoff = now_utc - timedelta(hours=3)
+
     filtered = []
     for row in rows:
-        dt = _parse_match_date(row["match_date"])
-        if dt is None or dt >= cutoff:
-            filtered.append(row)
+        match_date_str = row["match_date"]
+        row_status = row["status"]
 
-    return [MatchPreview(**dict(row)) for row in filtered]
+        # Excluir partidos terminados
+        if row_status == "FINISHED":
+            continue
+
+        # Parsear fecha con manejo robusto de timezone
+        try:
+            match_date = parse_date(match_date_str)
+            if match_date.tzinfo is None:
+                match_date = match_date.replace(tzinfo=timezone.utc)
+            if match_date >= cutoff:
+                filtered.append(row)
+        except Exception as e:
+            print(f"Error parsing date {match_date_str}: {e}")
+            filtered.append(row)  # fallback: incluir
+
+    return [MatchPreview(**{k: row[k] for k in row.keys() if k != "status"}) for row in filtered]
 
 
 @router.get("/{match_id}/preview", response_model=MatchPreview)
@@ -69,7 +72,7 @@ async def get_match_preview(
     db: aiosqlite.Connection = Depends(get_db),
 ):
     cursor = await db.execute(
-        _MATCH_PREVIEW_SQL + " WHERE m.id = ? AND m.is_published = 1",
+        _MATCH_PREVIEW_SQL.replace("WHERE m.is_published = 1", "WHERE m.id = ? AND m.is_published = 1"),
         (match_id,),
     )
     row = await cursor.fetchone()
@@ -78,4 +81,4 @@ async def get_match_preview(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Match not found or not published",
         )
-    return MatchPreview(**dict(row))
+    return MatchPreview(**{k: row[k] for k in row.keys() if k != "status"})
