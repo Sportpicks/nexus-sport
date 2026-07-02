@@ -63,7 +63,14 @@ async def list_matches(db: aiosqlite.Connection = Depends(get_db)):
             print(f"Error parsing date {match_date_str}: {e}")
             filtered.append(row)  # fallback: incluir
 
-    return [MatchPreview(**{k: row[k] for k in row.keys() if k != "status"}) for row in filtered]
+    try:
+        result = [MatchPreview(**{k: row[k] for k in row.keys() if k != "status"}) for row in filtered]
+        return result
+    except Exception as e:
+        print(f"ERROR construyendo MatchPreview: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 @router.get("/{match_id}/preview", response_model=MatchPreview)

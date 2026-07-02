@@ -8,7 +8,7 @@ class MatchPreview(BaseModel):
     id: int
     home_team: str
     away_team: str
-    match_date: datetime
+    match_date: str
     stage: Optional[str] = None
     price_usd: float
     is_published: bool
