@@ -1,5 +1,7 @@
 import logging
+import subprocess
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import aiosqlite
 from fastapi import FastAPI
@@ -19,21 +21,20 @@ async def lifespan(app: FastAPI):
 
     # Auto-seed if the database has no matches (Railway ephemeral filesystem)
     try:
-        async with aiosqlite.connect(DB_PATH) as _db:
-            cur = await _db.execute("SELECT COUNT(*) FROM matches")
-            (count,) = await cur.fetchone()
+        async with aiosqlite.connect(settings.DATABASE_URL) as db:
+            rows = await db.execute_fetchall("SELECT COUNT(*) FROM matches")
+            count = rows[0][0]
         if count == 0:
-            logger.info("Database empty — running auto-seed …")
-            from scripts.seed_matches import seed as _seed
-            await _seed()
-            logger.info("Auto-seed complete. Starting live sync …")
+            print("BD vacía — ejecutando auto-seed...")
+            seed_script = Path(__file__).parent.parent / "scripts" / "seed_matches.py"
+            subprocess.run(["python", str(seed_script)], check=False)
             try:
                 from backend.services.ingest_service import sync_wc_matches
-                async with aiosqlite.connect(DB_PATH) as _db2:
-                    await sync_wc_matches(_db2)
-                logger.info("Live sync complete.")
-            except Exception as exc:
-                logger.warning("Live sync failed (non-fatal): %s", exc)
+                async with aiosqlite.connect(settings.DATABASE_URL) as db2:
+                    result = await sync_wc_matches(db2)
+                    print(f"Auto-sync completado: {result}")
+            except Exception as e:
+                print(f"Auto-sync error (no crítico): {e}")
     except Exception as exc:
         logger.error("Auto-seed error (non-fatal): %s", exc)
 
