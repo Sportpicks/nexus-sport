@@ -87,11 +87,100 @@ async def _upsert_team(db, api_id: int, name: str, country: str) -> int:
     return row[0]
 
 
+_WC_LEAGUE_AVG_GOALS = 1.5  # baseline goals/game for WC tournaments
+
+
+def _compute_team_stats_from_matches(matches: list) -> dict[int, dict]:
+    """
+    Derive per-team GF/GC from all FINISHED WC matches.
+    Returns {api_team_id: {gf, gc, played, name, country}}.
+    """
+    stats: dict[int, dict] = {}
+
+    for m in matches:
+        if m.get("status") != "FINISHED":
+            continue
+        ft = (m.get("score", {}).get("fullTime") or {})
+        gh = ft.get("home")
+        ga = ft.get("away")
+        if gh is None or ga is None:
+            continue
+
+        home_t = m.get("homeTeam", {})
+        away_t = m.get("awayTeam", {})
+        for team, gf, gc in [(home_t, gh, ga), (away_t, ga, gh)]:
+            tid = team.get("id")
+            if not tid:
+                continue
+            if tid not in stats:
+                stats[tid] = {
+                    "name":    team.get("name", ""),
+                    "country": team.get("area", {}).get("name", ""),
+                    "gf": 0, "gc": 0, "played": 0,
+                }
+            stats[tid]["gf"]     += gf
+            stats[tid]["gc"]     += gc
+            stats[tid]["played"] += 1
+
+    return stats
+
+
+async def _upsert_wc_team_stats(db, api_team_stats: dict[int, dict]) -> int:
+    """
+    Upsert WC team stats into team_stats table for all teams present in our DB.
+    Returns count of rows upserted.
+    """
+    upserted = 0
+    for api_id, s in api_team_stats.items():
+        cur = await db.execute("SELECT id FROM teams WHERE api_id = ?", (api_id,))
+        row = await cur.fetchone()
+        if not row:
+            continue
+        team_id = row[0]
+
+        n = s["played"]
+        if n == 0:
+            continue
+
+        gf_pg = round(s["gf"] / n, 3)
+        gc_pg = round(s["gc"] / n, 3)
+        atk   = round(gf_pg / _WC_LEAGUE_AVG_GOALS, 3)
+        dfw   = round(gc_pg / _WC_LEAGUE_AVG_GOALS, 3)
+        xg_for  = round(gf_pg * 0.85, 3)
+        xg_against = round(gc_pg * 0.85, 3)
+
+        await db.execute(
+            """
+            INSERT INTO team_stats
+                (team_id, season, competition,
+                 matches_played, goals_scored, goals_conceded,
+                 xg_for, xg_against,
+                 attack_strength, defense_weakness, last_synced)
+            VALUES (?, 2026, 'WC_KNOCKOUT', ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(team_id, season, competition) DO UPDATE SET
+                matches_played   = excluded.matches_played,
+                goals_scored     = excluded.goals_scored,
+                goals_conceded   = excluded.goals_conceded,
+                xg_for           = excluded.xg_for,
+                xg_against       = excluded.xg_against,
+                attack_strength  = excluded.attack_strength,
+                defense_weakness = excluded.defense_weakness,
+                last_synced      = excluded.last_synced
+            """,
+            (team_id, n, gf_pg, gc_pg, xg_for, xg_against, atk, dfw,
+             _now_utc().isoformat()),
+        )
+        upserted += 1
+
+    return upserted
+
+
 async def sync_wc_matches(db) -> dict:
     """
-    Fetch all WC 2026 matches from football-data.org and upsert into DB.
-    Only knockout-stage matches are kept (GROUP_STAGE is filtered out).
-    Returns {"inserted": int, "updated": int, "total_fetched": int}.
+    Fetch all WC 2026 matches from football-data.org, upsert knockout matches,
+    and update team_stats from real tournament results (GF/GC).
+    Returns {"inserted": int, "updated": int, "total_fetched": int,
+             "team_stats_updated": int}.
     """
     url = f"{settings.FOOTBALL_DATA_URL}/competitions/WC/matches"
     inserted = updated = 0
@@ -167,8 +256,20 @@ async def sync_wc_matches(db) -> dict:
             inserted += 1
 
     await db.commit()
-    return {"inserted": inserted, "updated": updated, "total_fetched": len(matches),
-            "knockout_processed": len(knockout_matches)}
+
+    # Derive team stats from ALL finished WC matches (group + knockout)
+    api_team_stats = _compute_team_stats_from_matches(matches)
+    team_stats_updated = await _upsert_wc_team_stats(db, api_team_stats)
+    await db.commit()
+    logger.info("Team stats updated for %d teams", team_stats_updated)
+
+    return {
+        "inserted": inserted,
+        "updated": updated,
+        "total_fetched": len(matches),
+        "knockout_processed": len(knockout_matches),
+        "team_stats_updated": team_stats_updated,
+    }
 
 
 async def sync_team_stats(db, team_api_id: int) -> dict:
