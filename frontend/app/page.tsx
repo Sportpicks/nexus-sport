@@ -134,7 +134,6 @@ export default function HomePage() {
   useEffect(() => { load(); }, []);
 
   const groups = groupByDate(matches);
-  const firstMatchId = matches[0]?.id ?? null;
 
   return (
     <main style={{ minHeight: "100vh", background: C.bg, color: C.primary, paddingBottom: 80 }}>
@@ -218,7 +217,7 @@ export default function HomePage() {
                 <MatchRow
                   key={m.id}
                   match={m}
-                  isFree={m.id === firstMatchId}
+                  isFree={true}
                   isExpanded={expandedId === m.id}
                   onToggle={() => setExpandedId(expandedId === m.id ? null : m.id)}
                 />

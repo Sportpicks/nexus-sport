@@ -18,10 +18,17 @@ _MATCH_PREVIEW_SQL = """
         m.match_date,
         m.stage,
         m.price_usd,
-        m.is_published
+        m.is_published,
+        p.prob_home,
+        p.prob_draw,
+        p.prob_away,
+        p.prob_over_25,
+        p.prob_btts,
+        p.prob_extra_time
     FROM matches m
-    JOIN teams ht ON ht.id = m.home_team_id
-    JOIN teams at ON at.id = m.away_team_id
+    JOIN  teams ht ON ht.id = m.home_team_id
+    JOIN  teams at ON at.id = m.away_team_id
+    LEFT JOIN predictions p ON p.match_id = m.id
 """
 
 

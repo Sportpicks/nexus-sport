@@ -26,6 +26,12 @@ export interface Match {
   stage: string;
   price_usd: number;
   is_published: boolean;
+  prob_home?: number | null;
+  prob_draw?: number | null;
+  prob_away?: number | null;
+  prob_over_25?: number | null;
+  prob_btts?: number | null;
+  prob_extra_time?: number | null;
 }
 
 export interface PredictionReport {

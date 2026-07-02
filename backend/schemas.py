@@ -12,6 +12,13 @@ class MatchPreview(BaseModel):
     stage: Optional[str] = None
     price_usd: float
     is_published: bool
+    # Prediction fields (nullable — populated when a prediction exists)
+    prob_home: Optional[float] = None
+    prob_draw: Optional[float] = None
+    prob_away: Optional[float] = None
+    prob_over_25: Optional[float] = None
+    prob_btts: Optional[float] = None
+    prob_extra_time: Optional[float] = None
 
 
 class PaymentSubmit(BaseModel):
