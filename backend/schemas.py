@@ -19,6 +19,11 @@ class MatchPreview(BaseModel):
     prob_over_25: Optional[float] = None
     prob_btts: Optional[float] = None
     prob_extra_time: Optional[float] = None
+    # Real bookmaker odds (nullable — only present when odds are available)
+    odds_home: Optional[float] = None
+    odds_draw: Optional[float] = None
+    odds_away: Optional[float] = None
+    odds_source: Optional[str] = None
 
 
 class PaymentSubmit(BaseModel):

@@ -27,12 +27,18 @@ interface MatchData {
   prob_over_25: number;
   prob_btts: number;
   prob_extra_time: number;
+  // Real bookmaker odds (null when unavailable)
+  odds_home: number | null;
+  odds_draw: number | null;
+  odds_away: number | null;
+  odds_source: string | null;
 }
 
 interface Pick {
   text: string;
-  cuota: string;
-  conf: number;
+  conf: number;        // probability 0-100
+  realOdd: number | null;  // real bookmaker odd, null if unavailable
+  oddSource: string | null;
 }
 
 // ── Pick logic ────────────────────────────────────────────────────────────────
@@ -40,62 +46,50 @@ interface Pick {
 function getPublicPicks(data: MatchData): Pick[] {
   const picks: Pick[] = [];
 
-  const probHome  = data.prob_home  * 100;
-  const probAway  = data.prob_away  * 100;
-  const probOver  = data.prob_over_25 * 100;
-  const probBtts  = data.prob_btts  * 100;
+  const probHome = data.prob_home * 100;
+  const probAway = data.prob_away * 100;
+  const probOver = data.prob_over_25 * 100;
+  const probBtts = data.prob_btts * 100;
 
   // Pick 1X2 — umbral 45%
   if (probHome > 45) {
     picks.push({
       text: `Victoria ${data.home_team}`,
-      cuota: (1 / (probHome / 100)).toFixed(2),
       conf: probHome,
+      realOdd: data.odds_home,
+      oddSource: data.odds_source,
     });
   } else if (probAway > 45) {
     picks.push({
       text: `Victoria ${data.away_team}`,
-      cuota: (1 / (probAway / 100)).toFixed(2),
       conf: probAway,
+      realOdd: data.odds_away,
+      oddSource: data.odds_source,
     });
   } else {
     const fav     = probHome >= probAway ? data.home_team : data.away_team;
     const favProb = Math.max(probHome, probAway);
+    const favOdd  = probHome >= probAway ? data.odds_home : data.odds_away;
     picks.push({
       text: `Favorito: ${fav}`,
-      cuota: (1 / (favProb / 100)).toFixed(2),
       conf: favProb,
+      realOdd: favOdd,
+      oddSource: data.odds_source,
     });
   }
 
   // Pick Over/Under — umbral 55%
   if (probOver > 55) {
-    picks.push({
-      text: "Más de 2.5 goles",
-      cuota: (1 / (probOver / 100)).toFixed(2),
-      conf: probOver,
-    });
+    picks.push({ text: "Más de 2.5 goles", conf: probOver, realOdd: null, oddSource: null });
   } else if (probOver < 45) {
-    picks.push({
-      text: "Menos de 2.5 goles",
-      cuota: (1 / ((100 - probOver) / 100)).toFixed(2),
-      conf: 100 - probOver,
-    });
+    picks.push({ text: "Menos de 2.5 goles", conf: 100 - probOver, realOdd: null, oddSource: null });
   }
 
   // Pick BTTS — umbral 60%
   if (probBtts > 60) {
-    picks.push({
-      text: "Ambos equipos anotan (SÍ)",
-      cuota: (1 / (probBtts / 100)).toFixed(2),
-      conf: probBtts,
-    });
+    picks.push({ text: "Ambos equipos anotan (SÍ)", conf: probBtts, realOdd: null, oddSource: null });
   } else if (probBtts < 35) {
-    picks.push({
-      text: "Ambos equipos anotan (NO)",
-      cuota: (1 / ((100 - probBtts) / 100)).toFixed(2),
-      conf: 100 - probBtts,
-    });
+    picks.push({ text: "Ambos equipos anotan (NO)", conf: 100 - probBtts, realOdd: null, oddSource: null });
   }
 
   return picks;
@@ -109,14 +103,18 @@ function fallbackData(match: Match): MatchData {
   const pd = 0.2 + (s % 15) / 100;
   const pa = Math.max(0.05, 1 - ph - pd);
   return {
-    home_team:      match.home_team,
-    away_team:      match.away_team,
-    prob_home:      match.prob_home  ?? ph,
-    prob_draw:      match.prob_draw  ?? pd,
-    prob_away:      match.prob_away  ?? pa,
-    prob_over_25:   match.prob_over_25 ?? 0.45 + (s % 20) / 100,
-    prob_btts:      match.prob_btts  ?? 0.40 + (s % 25) / 100,
+    home_team:       match.home_team,
+    away_team:       match.away_team,
+    prob_home:       match.prob_home       ?? ph,
+    prob_draw:       match.prob_draw       ?? pd,
+    prob_away:       match.prob_away       ?? pa,
+    prob_over_25:    match.prob_over_25    ?? 0.45 + (s % 20) / 100,
+    prob_btts:       match.prob_btts       ?? 0.40 + (s % 25) / 100,
     prob_extra_time: match.prob_extra_time ?? 0.18 + (s % 12) / 100,
+    odds_home:       match.odds_home       ?? null,
+    odds_draw:       match.odds_draw       ?? null,
+    odds_away:       match.odds_away       ?? null,
+    odds_source:     match.odds_source     ?? null,
   };
 }
 
@@ -154,8 +152,12 @@ export default function MatchRowFree({ match, isKnockout }: Props) {
             prob_draw:       json.prob_draw,
             prob_away:       json.prob_away,
             prob_over_25:    json.prob_over_25,
-            prob_btts:       json.prob_btts ?? 0.45,
+            prob_btts:       json.prob_btts    ?? 0.45,
             prob_extra_time: json.prob_extra_time ?? 0.2,
+            odds_home:       json.odds_home    ?? null,
+            odds_draw:       json.odds_draw    ?? null,
+            odds_away:       json.odds_away    ?? null,
+            odds_source:     json.odds_source  ?? null,
           });
         }
       })
@@ -227,21 +229,30 @@ export default function MatchRowFree({ match, isKnockout }: Props) {
             <div key={i} style={{
               background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)",
               borderRadius: 10, padding: "10px 14px",
-              display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
             }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: C.primary }}>{pick.text}</div>
-                <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>
-                  Poisson + Dixon-Coles · Confianza: {pick.conf.toFixed(0)}%
+              {/* Pick text */}
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.primary, marginBottom: 4 }}>
+                🎯 Pick: {pick.text} ({pick.conf.toFixed(0)}% confianza · modelo estadístico)
+              </div>
+              {/* Source line */}
+              <div style={{ fontSize: 11, color: C.dim }}>
+                Basado en Poisson + Dixon-Coles con datos del Mundial 2026
+              </div>
+              {/* Real bookmaker odd — only shown when available */}
+              {pick.realOdd != null && (
+                <div style={{
+                  marginTop: 6, display: "inline-flex", alignItems: "center", gap: 6,
+                  background: "rgba(99,102,241,0.12)", borderRadius: 8,
+                  padding: "3px 10px",
+                }}>
+                  <span style={{ fontSize: 11, color: "#A78BFA" }}>
+                    Cuota {pick.oddSource ?? "mercado"}:
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.primary }}>
+                    {pick.realOdd.toFixed(2)}
+                  </span>
                 </div>
-              </div>
-              <div style={{
-                fontSize: 15, fontWeight: 700, color: C.green,
-                background: "rgba(52,211,153,0.12)", borderRadius: 8,
-                padding: "4px 10px", flexShrink: 0,
-              }}>
-                {pick.cuota}
-              </div>
+              )}
             </div>
           ))
         )}

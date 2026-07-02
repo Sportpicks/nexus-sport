@@ -32,6 +32,10 @@ export interface Match {
   prob_over_25?: number | null;
   prob_btts?: number | null;
   prob_extra_time?: number | null;
+  odds_home?: number | null;
+  odds_draw?: number | null;
+  odds_away?: number | null;
+  odds_source?: string | null;
 }
 
 export interface PredictionReport {
