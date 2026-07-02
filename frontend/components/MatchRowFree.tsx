@@ -27,6 +27,13 @@ interface MatchData {
   prob_over_25: number;
   prob_btts: number;
   prob_extra_time: number;
+  // ML projections (null when model has no data)
+  xg_home: number | null;
+  xg_away: number | null;
+  corners_home_pred: number | null;
+  corners_away_pred: number | null;
+  yellow_home_pred: number | null;
+  yellow_away_pred: number | null;
   // Real bookmaker odds (null when unavailable)
   odds_home: number | null;
   odds_draw: number | null;
@@ -103,18 +110,24 @@ function fallbackData(match: Match): MatchData {
   const pd = 0.2 + (s % 15) / 100;
   const pa = Math.max(0.05, 1 - ph - pd);
   return {
-    home_team:       match.home_team,
-    away_team:       match.away_team,
-    prob_home:       match.prob_home       ?? ph,
-    prob_draw:       match.prob_draw       ?? pd,
-    prob_away:       match.prob_away       ?? pa,
-    prob_over_25:    match.prob_over_25    ?? 0.45 + (s % 20) / 100,
-    prob_btts:       match.prob_btts       ?? 0.40 + (s % 25) / 100,
-    prob_extra_time: match.prob_extra_time ?? 0.18 + (s % 12) / 100,
-    odds_home:       match.odds_home       ?? null,
-    odds_draw:       match.odds_draw       ?? null,
-    odds_away:       match.odds_away       ?? null,
-    odds_source:     match.odds_source     ?? null,
+    home_team:         match.home_team,
+    away_team:         match.away_team,
+    prob_home:         match.prob_home       ?? ph,
+    prob_draw:         match.prob_draw       ?? pd,
+    prob_away:         match.prob_away       ?? pa,
+    prob_over_25:      match.prob_over_25    ?? 0.45 + (s % 20) / 100,
+    prob_btts:         match.prob_btts       ?? 0.40 + (s % 25) / 100,
+    prob_extra_time:   match.prob_extra_time ?? 0.18 + (s % 12) / 100,
+    xg_home:           match.xg_home         ?? null,
+    xg_away:           match.xg_away         ?? null,
+    corners_home_pred: match.corners_home_pred ?? null,
+    corners_away_pred: match.corners_away_pred ?? null,
+    yellow_home_pred:  match.yellow_home_pred  ?? null,
+    yellow_away_pred:  match.yellow_away_pred  ?? null,
+    odds_home:         match.odds_home       ?? null,
+    odds_draw:         match.odds_draw       ?? null,
+    odds_away:         match.odds_away       ?? null,
+    odds_source:       match.odds_source     ?? null,
   };
 }
 
@@ -146,18 +159,24 @@ export default function MatchRowFree({ match, isKnockout }: Props) {
       .then((json) => {
         if (json && json.prob_home != null) {
           setData({
-            home_team:       json.home_team,
-            away_team:       json.away_team,
-            prob_home:       json.prob_home,
-            prob_draw:       json.prob_draw,
-            prob_away:       json.prob_away,
-            prob_over_25:    json.prob_over_25,
-            prob_btts:       json.prob_btts    ?? 0.45,
-            prob_extra_time: json.prob_extra_time ?? 0.2,
-            odds_home:       json.odds_home    ?? null,
-            odds_draw:       json.odds_draw    ?? null,
-            odds_away:       json.odds_away    ?? null,
-            odds_source:     json.odds_source  ?? null,
+            home_team:         json.home_team,
+            away_team:         json.away_team,
+            prob_home:         json.prob_home,
+            prob_draw:         json.prob_draw,
+            prob_away:         json.prob_away,
+            prob_over_25:      json.prob_over_25,
+            prob_btts:         json.prob_btts         ?? 0.45,
+            prob_extra_time:   json.prob_extra_time   ?? 0.2,
+            xg_home:           json.xg_home           ?? null,
+            xg_away:           json.xg_away           ?? null,
+            corners_home_pred: json.corners_home_pred ?? null,
+            corners_away_pred: json.corners_away_pred ?? null,
+            yellow_home_pred:  json.yellow_home_pred  ?? null,
+            yellow_away_pred:  json.yellow_away_pred  ?? null,
+            odds_home:         json.odds_home         ?? null,
+            odds_draw:         json.odds_draw         ?? null,
+            odds_away:         json.odds_away         ?? null,
+            odds_source:       json.odds_source       ?? null,
           });
         }
       })
@@ -211,6 +230,37 @@ export default function MatchRowFree({ match, isKnockout }: Props) {
           </div>
         )}
       </div>
+
+      {/* Proyecciones adicionales — solo si el modelo tiene datos */}
+      {(() => {
+        const totalCorners = (data.corners_home_pred ?? 0) + (data.corners_away_pred ?? 0);
+        const totalYellow  = (data.yellow_home_pred  ?? 0) + (data.yellow_away_pred  ?? 0);
+        const hasCorners   = totalCorners > 0;
+        const hasYellow    = totalYellow  > 0;
+        if (!hasCorners && !hasYellow) return null;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
+            {hasCorners && (
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, color: C.muted }}>
+                  Córners esperados · {totalCorners > 9 ? `Más de ${Math.floor(totalCorners) - 1}` : `Menos de ${Math.ceil(totalCorners) + 1}`}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.primary }}>
+                  {totalCorners.toFixed(0)} totales
+                </span>
+              </div>
+            )}
+            {hasYellow && (
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, color: C.muted }}>Tarjetas amarillas esperadas</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.primary }}>
+                  ~{totalYellow.toFixed(0)}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Picks públicos */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

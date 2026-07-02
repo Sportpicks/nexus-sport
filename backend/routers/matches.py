@@ -25,7 +25,13 @@ _MATCH_PREVIEW_SQL = """
         p.prob_away,
         p.prob_over_25,
         p.prob_btts,
-        p.prob_extra_time
+        p.prob_extra_time,
+        p.xg_home,
+        p.xg_away,
+        p.corners_home_pred,
+        p.corners_away_pred,
+        p.yellow_home_pred,
+        p.yellow_away_pred
     FROM matches m
     LEFT JOIN teams t1 ON m.home_team_id = t1.id
     LEFT JOIN teams t2 ON m.away_team_id = t2.id

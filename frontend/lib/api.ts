@@ -32,6 +32,12 @@ export interface Match {
   prob_over_25?: number | null;
   prob_btts?: number | null;
   prob_extra_time?: number | null;
+  xg_home?: number | null;
+  xg_away?: number | null;
+  corners_home_pred?: number | null;
+  corners_away_pred?: number | null;
+  yellow_home_pred?: number | null;
+  yellow_away_pred?: number | null;
   odds_home?: number | null;
   odds_draw?: number | null;
   odds_away?: number | null;
