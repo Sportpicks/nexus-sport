@@ -34,6 +34,7 @@ export default function MatchRow({ match, isFree, isExpanded, onToggle }: Props)
   }
 
   const stageLabel = STAGE_LABELS[match.stage] ?? match.stage;
+  const isKnockout = match.stage in STAGE_LABELS;
 
   return (
     <div style={{
@@ -61,12 +62,16 @@ export default function MatchRow({ match, isFree, isExpanded, onToggle }: Props)
         {/* Teams */}
         <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
           <img src={getFlagUrl(match.home_team)} alt={match.home_team}
-            style={{ width: 28, height: 19, objectFit: "cover", borderRadius: 3 }} />
+            width={32} height={21}
+            style={{ objectFit: "cover", borderRadius: "3px" }}
+            onError={(e) => { e.currentTarget.src = "https://flagcdn.com/w40/un.png"; }} />
           <span style={{ fontSize: 14, fontWeight: 600, color: "#F1F5F9" }}>{match.home_team}</span>
           <span style={{ fontSize: 12, color: "#475569", margin: "0 2px" }}>vs</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#F1F5F9" }}>{match.away_team}</span>
           <img src={getFlagUrl(match.away_team)} alt={match.away_team}
-            style={{ width: 28, height: 19, objectFit: "cover", borderRadius: 3 }} />
+            width={32} height={21}
+            style={{ objectFit: "cover", borderRadius: "3px" }}
+            onError={(e) => { e.currentTarget.src = "https://flagcdn.com/w40/un.png"; }} />
         </div>
 
         {/* Right side */}
@@ -108,7 +113,7 @@ export default function MatchRow({ match, isFree, isExpanded, onToggle }: Props)
       {isExpanded && (
         isFree ? (
           <>
-            <MatchRowFree match={match} />
+            <MatchRowFree match={match} isKnockout={isKnockout} />
             <MatchRowPremium match={match} />
           </>
         ) : hasToken ? (

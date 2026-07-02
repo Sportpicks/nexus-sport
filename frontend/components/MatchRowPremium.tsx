@@ -42,12 +42,12 @@ export default function MatchRowPremium({ match }: Props) {
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             gap: 12, borderRadius: 10,
           }}>
-            <span style={{ fontSize: 28 }}>🔒</span>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#F1F5F9", textAlign: "center" }}>
-              Análisis completo
+            <span style={{ fontSize: 28 }}>🏆</span>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#F1F5F9", textAlign: "center" }}>
+              PICK PREMIUM
             </p>
-            <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", textAlign: "center" }}>
-              Desbloquea xG, hándicap, córners y value bets
+            <p style={{ margin: 0, fontSize: 11, color: "#94A3B8", textAlign: "center", maxWidth: 220 }}>
+              Análisis avanzado: xG, value bets, hándicap asiático y pick de alta confianza (&gt;70%)
             </p>
             <button
               onClick={() => setShowPaywall(true)}

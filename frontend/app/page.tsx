@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getMatches, type Match } from "@/lib/api";
 import MatchRow from "@/components/MatchRow";
+import WorldCupTable from "@/components/WorldCupTable";
 
 const C = {
   bg:      "#0B1220",
@@ -225,6 +226,9 @@ export default function HomePage() {
             </div>
           </div>
         ))}
+
+        {/* World Cup standings */}
+        {!loading && !error && <WorldCupTable />}
 
         {/* Pricing */}
         {!loading && <PricingSection />}
