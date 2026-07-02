@@ -12,8 +12,12 @@ GET  /admin/api-status                 — remaining API requests (live quota ca
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+import uuid
+from datetime import datetime, timedelta, timezone
 
+from fastapi import APIRouter, Depends, Header, HTTPException
+
+from backend.config import settings
 from backend.database import get_db
 from backend.models.ml.train import retrain_from_db
 from backend.services.ingest_service import (
@@ -28,13 +32,102 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 # ── Auth dependency ────────────────────────────────────────────────────────────
 
-async def require_admin(db=Depends(get_db)):
-    """
-    Placeholder: in production, decode Bearer JWT and verify users.is_admin = 1.
-    For now returns db so downstream handlers can use it directly.
-    """
-    # TODO: decode token, load user, assert user.is_admin == 1
+async def require_admin(
+    x_admin_key: str = Header(default="", alias="x-admin-key"),
+    db=Depends(get_db),
+):
+    if x_admin_key != settings.SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
     return db
+
+
+# ── Dashboard & payment management ────────────────────────────────────────────
+
+@router.get("/dashboard")
+async def dashboard(db=Depends(require_admin)):
+    cur = await db.execute("SELECT COUNT(*) FROM payments")
+    total = (await cur.fetchone())[0]
+    cur = await db.execute("SELECT COUNT(*) FROM payments WHERE status = 'pending'")
+    pending = (await cur.fetchone())[0]
+    cur = await db.execute("SELECT COUNT(*) FROM payments WHERE status = 'verified'")
+    verified = (await cur.fetchone())[0]
+    cur = await db.execute("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'verified'")
+    revenue = (await cur.fetchone())[0]
+    return {
+        "total_pagos": total,
+        "pagos_pendientes": pending,
+        "pagos_verificados": verified,
+        "ingresos_total_usd": round(float(revenue), 2),
+    }
+
+
+@router.get("/payments")
+async def list_payments(db=Depends(require_admin)):
+    cur = await db.execute(
+        """
+        SELECT p.id, p.op_number, p.method, p.amount, p.status,
+               p.created_at, p.verified_at, u.email,
+               t1.name AS home_team, t2.name AS away_team,
+               m.id AS match_id, m.match_date, m.stage
+        FROM payments p
+        LEFT JOIN users u ON p.user_id = u.id
+        LEFT JOIN matches m ON p.match_id = m.id
+        LEFT JOIN teams t1 ON m.home_team_id = t1.id
+        LEFT JOIN teams t2 ON m.away_team_id = t2.id
+        ORDER BY p.created_at DESC
+        """
+    )
+    rows = await cur.fetchall()
+    return [
+        {
+            "id": r[0],
+            "op_number": r[1],
+            "method": r[2],
+            "amount": r[3],
+            "status": r[4],
+            "created_at": r[5],
+            "verified_at": r[6],
+            "email": r[7],
+            "match_name": f"{r[8]} vs {r[9]}" if r[8] and r[9] else None,
+            "match_id": r[10],
+            "match_date": r[11],
+            "stage": r[12],
+        }
+        for r in rows
+    ]
+
+
+@router.post("/payments/{payment_id}/verify")
+async def approve_payment(payment_id: int, db=Depends(require_admin)):
+    cur = await db.execute("SELECT id, status, match_id FROM payments WHERE id = ?", (payment_id,))
+    row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    token = str(uuid.uuid4())
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
+
+    await db.execute(
+        "UPDATE payments SET status = 'verified', verified_at = ? WHERE id = ?",
+        (now, payment_id),
+    )
+    await db.execute(
+        "INSERT INTO access_tokens (payment_id, token, expires_at) VALUES (?, ?, ?)",
+        (payment_id, token, expires_at),
+    )
+    await db.commit()
+    return {"status": "verified", "token": token, "expires_at": expires_at}
+
+
+@router.post("/payments/{payment_id}/reject")
+async def reject_payment(payment_id: int, db=Depends(require_admin)):
+    cur = await db.execute("SELECT id FROM payments WHERE id = ?", (payment_id,))
+    if not await cur.fetchone():
+        raise HTTPException(status_code=404, detail="Payment not found")
+    await db.execute("UPDATE payments SET status = 'rejected' WHERE id = ?", (payment_id,))
+    await db.commit()
+    return {"status": "rejected"}
 
 
 # ── Sync endpoints ─────────────────────────────────────────────────────────────

@@ -1,16 +1,44 @@
+import logging
 from contextlib import asynccontextmanager
 
+import aiosqlite
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
-from backend.database import init_db
+from backend.database import DB_PATH, init_db
 from backend.services.scheduler import create_scheduler
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     await init_db()
+
+    # Auto-sync if the database has no matches (Railway ephemeral filesystem)
+    try:
+        async with aiosqlite.connect(settings.DATABASE_URL) as db:
+            rows = await db.execute_fetchall("SELECT COUNT(*) FROM matches")
+            count = rows[0][0]
+            # Ensure admin user exists regardless
+            await db.execute(
+                "INSERT OR IGNORE INTO users (email, is_admin) VALUES ('admin@nexussport.com', 1)"
+            )
+            await db.commit()
+        if count == 0:
+            print("BD vacía — sincronizando partidos reales...")
+            try:
+                from backend.services.ingest_service import sync_wc_matches
+                async with aiosqlite.connect(settings.DATABASE_URL) as db2:
+                    result = await sync_wc_matches(db2)
+                    print(f"Auto-sync: {result}")
+            except Exception as e:
+                print(f"Auto-sync error: {e}")
+    except Exception as exc:
+        logger.error("Auto-seed error (non-fatal): %s", exc)
+
     scheduler = create_scheduler()
     scheduler.start()
     yield
@@ -25,9 +53,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://nexus-sport-six.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

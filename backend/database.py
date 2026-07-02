@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 from typing import AsyncGenerator
 
 import aiosqlite
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "db" / "nexus.db"
+_DEFAULT_DB = Path(__file__).resolve().parent.parent / "db" / "nexus.db"
+DB_PATH = Path(os.environ.get("DATABASE_URL", str(_DEFAULT_DB)))
 
 DDL_STATEMENTS = [
     """
@@ -76,6 +77,7 @@ DDL_STATEMENTS = [
         yellow_away_pred   REAL,
         prob_extra_time    REAL,
         prob_penalties     REAL,
+        prob_btts          REAL,
         score_matrix       TEXT,
         combined_probs     TEXT,
         value_bets         TEXT
@@ -134,6 +136,10 @@ async def init_db() -> None:
         await db.execute("PRAGMA foreign_keys=ON")
         for statement in DDL_STATEMENTS:
             await db.execute(statement)
+        # Add prob_btts column if missing (schema migration)
+        cols = await db.execute_fetchall("PRAGMA table_info(predictions)")
+        if cols and "prob_btts" not in {row[1] for row in cols}:
+            await db.execute("ALTER TABLE predictions ADD COLUMN prob_btts REAL")
         await db.commit()
 
 

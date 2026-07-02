@@ -8,7 +8,7 @@ const withPWA = require("next-pwa")({
 });
 
 const nextConfig: NextConfig = {
-  // next-pwa wraps the config below
+  output: "standalone",
 };
 
 export default withPWA(nextConfig);

@@ -8,10 +8,29 @@ class MatchPreview(BaseModel):
     id: int
     home_team: str
     away_team: str
-    match_date: datetime
+    match_date: str
     stage: Optional[str] = None
     price_usd: float
     is_published: bool
+    # Prediction fields (nullable — populated when a prediction exists)
+    prob_home: Optional[float] = None
+    prob_draw: Optional[float] = None
+    prob_away: Optional[float] = None
+    prob_over_25: Optional[float] = None
+    prob_btts: Optional[float] = None
+    prob_extra_time: Optional[float] = None
+    # Projected stats from ML model (nullable)
+    xg_home: Optional[float] = None
+    xg_away: Optional[float] = None
+    corners_home_pred: Optional[float] = None
+    corners_away_pred: Optional[float] = None
+    yellow_home_pred: Optional[float] = None
+    yellow_away_pred: Optional[float] = None
+    # Real bookmaker odds (nullable — only present when odds are available)
+    odds_home: Optional[float] = None
+    odds_draw: Optional[float] = None
+    odds_away: Optional[float] = None
+    odds_source: Optional[str] = None
 
 
 class PaymentSubmit(BaseModel):

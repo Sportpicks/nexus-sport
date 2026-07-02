@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Nexus Sport"
     DEBUG: bool = True
-    DATABASE_URL: str = "db/nexus.db"
+    DATABASE_URL: str = "/app/db/nexus.db"
     SECRET_KEY: str = "cambiar-en-produccion"
 
     # API-Football (api-sports.io) — 100 req/day free tier

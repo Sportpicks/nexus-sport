@@ -26,6 +26,22 @@ export interface Match {
   stage: string;
   price_usd: number;
   is_published: boolean;
+  prob_home?: number | null;
+  prob_draw?: number | null;
+  prob_away?: number | null;
+  prob_over_25?: number | null;
+  prob_btts?: number | null;
+  prob_extra_time?: number | null;
+  xg_home?: number | null;
+  xg_away?: number | null;
+  corners_home_pred?: number | null;
+  corners_away_pred?: number | null;
+  yellow_home_pred?: number | null;
+  yellow_away_pred?: number | null;
+  odds_home?: number | null;
+  odds_draw?: number | null;
+  odds_away?: number | null;
+  odds_source?: string | null;
 }
 
 export interface PredictionReport {
@@ -98,3 +114,49 @@ export const getReport = (
   apiFetch<PredictionReport>(`/predictions/${match_id}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+// ── Admin types ───────────────────────────────────────────────────────────────
+
+export interface AdminPayment {
+  id: number;
+  op_number: string;
+  method: string;
+  amount: number;
+  status: "pending" | "verified" | "rejected";
+  created_at: string;
+  email: string | null;
+  match_name: string | null;
+}
+
+export interface AdminDashboard {
+  total_pagos: number;
+  pagos_pendientes: number;
+  pagos_verificados: number;
+  ingresos_total_usd: number;
+}
+
+// ── Admin API calls (via Next.js proxy /api/admin/* to avoid CORS) ───────────
+
+async function adminFetch<T>(path: string, apiKey: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`/api/admin/${path}`, {
+    ...options,
+    headers: { "x-admin-key": apiKey, "Content-Type": "application/json", ...(options.headers ?? {}) },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`API ${res.status}: ${body}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export const getAdminDashboard = (apiKey: string): Promise<AdminDashboard> =>
+  adminFetch<AdminDashboard>("dashboard", apiKey);
+
+export const getAdminPayments = (apiKey: string): Promise<AdminPayment[]> =>
+  adminFetch<AdminPayment[]>("payments", apiKey);
+
+export const adminVerifyPayment = (payment_id: number, apiKey: string) =>
+  adminFetch<{ status: string; token: string }>(`payments/${payment_id}/verify`, apiKey, { method: "POST" });
+
+export const adminRejectPayment = (payment_id: number, apiKey: string) =>
+  adminFetch<{ status: string }>(`payments/${payment_id}/reject`, apiKey, { method: "POST" });

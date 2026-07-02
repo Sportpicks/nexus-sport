@@ -6,65 +6,34 @@ import type { Match } from "@/lib/api";
 import { getToken } from "@/lib/tokens";
 import PaywallModal from "./PaywallModal";
 
+const FLAG_CODES: Record<string, string> = {
+  "brasil": "br", "argentina": "ar", "francia": "fr", "alemania": "de",
+  "españa": "es", "portugal": "pt", "inglaterra": "gb-eng", "uruguay": "uy",
+  "colombia": "co", "méxico": "mx", "mexico": "mx", "estados unidos": "us",
+  "usa": "us", "canadá": "ca", "canada": "ca", "marruecos": "ma",
+  "japón": "jp", "japon": "jp", "croacia": "hr", "países bajos": "nl",
+  "holanda": "nl", "suiza": "ch", "senegal": "sn", "australia": "au",
+  "corea del sur": "kr", "italia": "it", "bélgica": "be", "belgica": "be",
+  "polonia": "pl", "serbia": "rs", "dinamarca": "dk", "ecuador": "ec",
+  "perú": "pe", "peru": "pe", "chile": "cl", "venezuela": "ve",
+  "ghana": "gh", "nigeria": "ng", "turquía": "tr", "turquia": "tr",
+  "ucrania": "ua", "austria": "at", "escocia": "gb-sct", "gales": "gb-wls",
+  "grecia": "gr",
+};
+
+function getFlagUrl(name: string): string {
+  const code = FLAG_CODES[name.toLowerCase().trim()] ?? "un";
+  return `https://flagcdn.com/w80/${code}.png`;
+}
+
 const STAGE_LABELS: Record<string, string> = {
-  LAST_16: "Octavos de Final",
-  ROUND_OF_16: "Octavos de Final",
+  LAST_16: "Octavos",
+  ROUND_OF_16: "Octavos",
   QUARTER_FINALS: "Cuartos de Final",
   SEMI_FINALS: "Semifinal",
   THIRD_PLACE: "Tercer Puesto",
   FINAL: "Gran Final",
 };
-
-function getFlag(name: string): string {
-  switch (name.toLowerCase().trim()) {
-    case "brasil":           return "🇧🇷"; // 🇧🇷
-    case "argentina":        return "🇦🇷"; // 🇦🇷
-    case "francia":          return "🇫🇷"; // 🇫🇷
-    case "alemania":         return "🇩🇪"; // 🇩🇪
-    case "españa":           return "🇪🇸"; // 🇪🇸
-    case "portugal":         return "🇵🇹"; // 🇵🇹
-    case "inglaterra":       return "🏴󠁧󠁢󠁥󠁮󠁧󠁿"; // 🏴󠁧󠁢󠁥󠁮󠁧󠁿
-    case "países bajos":     return "🇳🇱"; // 🇳🇱
-    case "holanda":          return "🇳🇱"; // 🇳🇱
-    case "uruguay":          return "🇺🇾"; // 🇺🇾
-    case "colombia":         return "🇨🇴"; // 🇨🇴
-    case "méxico":
-    case "mexico":           return "🇲🇽"; // 🇲🇽
-    case "estados unidos":
-    case "usa":              return "🇺🇸"; // 🇺🇸
-    case "canadá":
-    case "canada":           return "🇨🇦"; // 🇨🇦
-    case "marruecos":        return "🇲🇦"; // 🇲🇦
-    case "senegal":          return "🇸🇳"; // 🇸🇳
-    case "japón":
-    case "japon":            return "🇯🇵"; // 🇯🇵
-    case "corea del sur":    return "🇰🇷"; // 🇰🇷
-    case "australia":        return "🇦🇺"; // 🇦🇺
-    case "croacia":          return "🇭🇷"; // 🇭🇷
-    case "bélgica":
-    case "belgica":          return "🇧🇪"; // 🇧🇪
-    case "suiza":            return "🇨🇭"; // 🇨🇭
-    case "italia":           return "🇮🇹"; // 🇮🇹
-    case "polonia":          return "🇵🇱"; // 🇵🇱
-    case "serbia":           return "🇷🇸"; // 🇷🇸
-    case "dinamarca":        return "🇩🇰"; // 🇩🇰
-    case "ecuador":          return "🇪🇨"; // 🇪🇨
-    case "perú":
-    case "peru":             return "🇵🇪"; // 🇵🇪
-    case "chile":            return "🇨🇱"; // 🇨🇱
-    case "venezuela":        return "🇻🇪"; // 🇻🇪
-    case "ghana":            return "🇬🇭"; // 🇬🇭
-    case "nigeria":          return "🇳🇬"; // 🇳🇬
-    case "turquía":
-    case "turquia":          return "🇹🇷"; // 🇹🇷
-    case "ucrania":          return "🇺🇦"; // 🇺🇦
-    case "austria":          return "🇦🇹"; // 🇦🇹
-    case "escocia":          return "🏴󠁧󠁢󠁳󠁣󠁴󠁿"; // 🏴󠁧󠁢󠁳󠁣󠁴󠁿
-    case "gales":            return "🏴󠁧󠁢󠁷󠁬󠁳󠁿"; // 🏴󠁧󠁢󠁷󠁬󠁳󠁿
-    case "grecia":           return "🇬🇷"; // 🇬🇷
-    default:                 return "🏳️";        // 🏳️
-  }
-}
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -84,6 +53,7 @@ interface Props {
 export default function MatchCard({ match }: Props) {
   const router = useRouter();
   const [showPaywall, setShowPaywall] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   function handleCTA() {
     const token = getToken(match.id);
@@ -98,45 +68,77 @@ export default function MatchCard({ match }: Props) {
 
   return (
     <>
-      <div className="group relative flex flex-col gap-4 rounded-2xl bg-slate-800/60 border border-slate-700 p-5 hover:border-violet-500/60 hover:bg-slate-800 transition-all duration-200">
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          background: "#1E293B",
+          border: hovered
+            ? "1px solid rgba(99,102,241,0.5)"
+            : "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 16,
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          transition: "border-color 0.2s, transform 0.2s",
+          transform: hovered ? "translateY(-2px)" : "none",
+          cursor: "default",
+        }}
+      >
         {/* Stage badge */}
-        <span className="self-start rounded-full bg-violet-900/50 px-3 py-0.5 text-xs font-semibold text-violet-300 tracking-wide">
+        <span
+          style={{
+            display: "inline-block",
+            alignSelf: "flex-start",
+            background: "rgba(99,102,241,0.2)",
+            color: "#A78BFA",
+            borderRadius: 20,
+            padding: "3px 12px",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+          }}
+        >
           {stageLabel}
         </span>
 
         {/* Teams */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 40, lineHeight: 1, userSelect: "none" }}>
-                {getFlag(match.home_team)}
-              </span>
-            </div>
-            <span className="text-sm font-semibold text-white leading-tight">
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Home */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <img
+              src={getFlagUrl(match.home_team)}
+              alt={match.home_team}
+              style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 4 }}
+            />
+            <span style={{ fontSize: 15, fontWeight: 600, color: "#F1F5F9", textAlign: "center", lineHeight: 1.3 }}>
               {match.home_team}
             </span>
           </div>
 
-          <div className="flex flex-col items-center">
-            <span className="text-lg font-bold text-slate-400">vs</span>
-          </div>
+          {/* VS */}
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>vs</div>
 
-          <div className="flex flex-col items-center gap-1 flex-1 text-center">
-            <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 40, lineHeight: 1, userSelect: "none" }}>
-                {getFlag(match.away_team)}
-              </span>
-            </div>
-            <span className="text-sm font-semibold text-white leading-tight">
+          {/* Away */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <img
+              src={getFlagUrl(match.away_team)}
+              alt={match.away_team}
+              style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 4 }}
+            />
+            <span style={{ fontSize: 15, fontWeight: 600, color: "#F1F5F9", textAlign: "center", lineHeight: 1.3 }}>
               {match.away_team}
             </span>
           </div>
         </div>
 
         {/* Date & price */}
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>📅 {formatDate(match.match_date)}</span>
-          <span className="font-semibold text-green-400">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: "#64748B" }}>
+            📅 {formatDate(match.match_date)}
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#34D399" }}>
             USD {match.price_usd.toFixed(2)}
           </span>
         </div>
@@ -144,7 +146,20 @@ export default function MatchCard({ match }: Props) {
         {/* CTA */}
         <button
           onClick={handleCTA}
-          className="mt-1 w-full rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 active:scale-95 transition-all"
+          style={{
+            background: "linear-gradient(135deg, #6366F1, #8B5CF6)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            padding: "11px 0",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            width: "100%",
+            transition: "opacity 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
         >
           Ver predicción →
         </button>
